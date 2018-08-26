@@ -1,4 +1,4 @@
-package com.github.sdnwiselab.sdnwise.Ctrl.topo;
+package com.github.sdnwiselab.sdnwise.Ctrl.services.topo;
 
 import java.util.*;
 
@@ -55,7 +55,6 @@ public class Dijkstra
                 double weight = e.weight;
                 double distanceThroughU = u.minDistance + weight;
                 if (distanceThroughU < v.minDistance) {
-                    System.out.println(v.name + "prev : " + u.name);
                     vertexQueue.remove(v);
 
 

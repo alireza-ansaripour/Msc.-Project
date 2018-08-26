@@ -52,7 +52,6 @@ public class CoojaSink extends AbstractCoojaMote {
 
     @Override
     public final void init() {
-        System.out.println("herer");
         try {
             battery = new SinkBattery();
             Controller.getInstance(this);
