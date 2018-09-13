@@ -57,61 +57,102 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
     }
 
 
-    public void addNode (int nodeID, ArrayList<Integer> neibours)  {
+    private boolean containsLink(int src, int dst){
+        Vertex v1 = graph.get(src);
+        Vertex v2 = graph.get(dst);
+        if (v2 == null || v1 == null)
+            return false;
+        return v1.adjacencies.contains(v2) && v2.adjacencies.contains(v1);
+    }
+
+
+    public void updateGraph(int nodeID, ArrayList<Integer> neibours)  {
         Vertex v = graph.get(nodeID);
         if(v == null){
             v = new Vertex("" + nodeID);
             graph.put(nodeID, v);
         }
+
         for (Integer neibour : neibours) {
             Vertex adj = graph.get(neibour);
             if (adj == null) {
                 adj = new Vertex("" + neibour);
                 graph.put(neibour, adj);
             }
-            adj.addAdj(v);
             v.addAdj(adj);
         }
-        System.out.println("new node added ");
+
+        for (int i = 0; i < v.adjacencies.size(); ) {
+            Edge n = v.adjacencies.get(i);
+            if(!neibours.contains(Integer.parseInt(n.target.name))){
+                v.adjacencies.remove(n);
+                Vertex toRemove = n.target;
+                for(Edge e : toRemove.adjacencies)
+                    unCheckedNodes.add(Integer.parseInt(e.target.name));
+            }else
+                i++;
+        }
     }
 
     @Override
     public void receive(NetworkPacket packet) {
         if(packet.getTyp() == NetworkPacket.REPORT){
-            updateGraph((ReportPacket) packet);
+            handleReportPacket((ReportPacket) packet);
         }
     }
 
-    private void updateGraph(ReportPacket reportPacket){
+
+    private Set<Integer> checkedNodes = new HashSet<>();
+    private Set<Integer> unCheckedNodes = new HashSet<>();
+    private boolean updateFlag = false;
+
+    private boolean checkUpdate(ArrayList<Integer> list1, ArrayList<Integer> list2){
+        boolean flag = false;
+        for (int i1 : list1)
+            if (!list2.contains(i1))
+                flag = true;
+
+        for (int i2 : list2)
+            if (!list1.contains(i2))
+                flag = true;
+        return flag;
+    }
+    private void handleReportPacket(ReportPacket reportPacket){
         NodeAddress src = reportPacket.getSrc();
         int srcID = src.intValue();
-        ArrayList<Integer> neiburs = new ArrayList<>();
+        checkedNodes.add(srcID);
+        unCheckedNodes.remove(srcID);
+        ArrayList<Integer> neighbours = new ArrayList<>();
         for (NodeAddress address: reportPacket.getNeighbors().keySet()){
-            neiburs.add(address.intValue());
-        }
-        addNode(srcID, neiburs);
-        if(graph.size() == 30 && !flag){
-            flag = true;
-            System.out.println(printGraph());
-            System.out.println("its show time");
-            for(int id : graph.keySet()){
-                ArrayList<Integer> path = getPathFromCtrl(id);
-                if(path.size() == 1)
-                    continue;
-                System.out.println("path to " + id + " is : "+ path);
-                List<Window> windows = new ArrayList<>();
-                windows.add(Window.fromString("P.TYP == 4"));
-                ArrayList<NodeAddress> pathNA = new ArrayList<>();
-                for(Integer nId : path)
-                    pathNA.add(new NodeAddress(nId));
-                OpenPathPacket pathPacket = new OpenPathPacket(1,new NodeAddress(1), new NodeAddress(srcID),pathNA);
-                pathPacket.setNxh(new NodeAddress(path.get(1)));
-                pathPacket.setWindows(windows);
-                ctrl.sendResponse(pathPacket);
+            int addr = address.intValue();
+            neighbours.add(addr);
+            if (!checkedNodes.contains(addr)){
+                unCheckedNodes.add(addr);
+                updateFlag = true;
             }
         }
+        Vertex vertex = graph.get(srcID) == null? new Vertex(""+srcID): graph.get(srcID);
+        ArrayList<Integer> list = new ArrayList<>();
+        for (Edge v : vertex.adjacencies){
+            list.add(Integer.parseInt(v.target.name));
+        }
+        Boolean diff = checkUpdate(list, neighbours);
+        if (diff)
+            System.out.println("diff "+ srcID + " - " + diff+ " - " + neighbours + "-" + list);
+
+        updateFlag = diff ? true : updateFlag;
+        if(diff) {
+            updateGraph(srcID, neighbours);
+            System.out.println("update node " + srcID + "neighbours " + neighbours);
+        }
+
+
+        if(updateFlag && unCheckedNodes.size() == 0){
+            ctrl.notifyTopologyChange(this);
+            updateFlag = false;
+        }
+
     }
-    private boolean flag = false;
     private Controller ctrl;
     @Override
     public void startUp(Controller controller) {
@@ -119,3 +160,21 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
         ctrl = controller;
     }
 }
+
+//                for (int id : graph.keySet()) {
+//                    if (pathSets.contains(id))
+//                        continue;
+//                    ArrayList<Integer> path = getPathFromCtrl(id);
+//                    if (path.size() == 1)
+//                        continue;
+//                    System.out.println("path to " + id + " is : " + path);
+//                    pathSets.add(id);
+//                    List<Window> windows = new ArrayList<>();
+//                    windows.add(Window.fromString("P.TYP == 4"));
+//                    ArrayList<NodeAddress> pathNA = new ArrayList<>();
+//                    for (Integer nId : path)
+//                        pathNA.add(new NodeAddress(nId));
+//                    OpenPathPacket pathPacket = new OpenPathPacket(1, new NodeAddress(1), new NodeAddress(srcID), pathNA);
+//                    pathPacket.setNxh(new NodeAddress(path.get(1)));
+//                    pathPacket.setWindows(windows);
+//                    ctrl.sendResponse(pathPacket);

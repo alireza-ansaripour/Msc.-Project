@@ -37,6 +37,13 @@ public class ResponsePacket extends NetworkPacket {
         super(data);
     }
 
+
+    private byte tunnelIndex;
+    private final int TUN_LEN = 1;
+    public void setTunnelIndex(byte tunnelID){
+        this.tunnelIndex = tunnelID;
+    }
+
     /**
      * This constructor initialize a response packet starting from a
      * NetworkPacket.
@@ -63,6 +70,14 @@ public class ResponsePacket extends NetworkPacket {
         setTyp(RESPONSE);
         setRule(entry);
     }
+    public ResponsePacket(final int net, final NodeAddress src,
+                          final NodeAddress dst,
+                          final FlowTableEntry entry, byte tunID) {
+        super(net, src, dst);
+        setTyp(RESPONSE);
+        tunnelIndex = tunID;
+        setRule(entry);
+    }
 
     /**
      * This constructor initialize a response packet starting from a int array.
@@ -82,10 +97,16 @@ public class ResponsePacket extends NetworkPacket {
      */
     public final ResponsePacket setRule(final FlowTableEntry rule) {
         byte[] tmp = rule.toByteArray();
+        byte[] ruleByte = new byte[tmp.length + TUN_LEN];
+        ruleByte[0] = tunnelIndex;
+        System.arraycopy(tmp,0, ruleByte, TUN_LEN, tmp.length);
         // the last byte is for stats so it is useless to send it in a response
-        setPayload(Arrays.copyOf(tmp, tmp.length - 1));
+        setPayload(Arrays.copyOf(ruleByte, ruleByte.length - 1));
+        setPayloadAt(tunnelIndex, 0);
         return this;
     }
+
+
 
     /**
      * Getter for the rule in the response packet.
@@ -93,13 +114,15 @@ public class ResponsePacket extends NetworkPacket {
      * @return the rule as a FlowTableEntry
      */
     public final FlowTableEntry getRule() {
-        FlowTableEntry rule = new FlowTableEntry(getPayload());
+        byte[] payload = getPayload();
+        byte[] ruleByte = new byte[payload.length - TUN_LEN];
+        System.arraycopy(payload, TUN_LEN, ruleByte, 0, ruleByte.length);
+        FlowTableEntry rule = new FlowTableEntry(ruleByte);
         return rule;
     }
 
     @Override
     public String toString() {
-
-        return super.toString() + "Response" + this.getRule();
+        return super.toString() +" TUN = "+ getPayloadAt(0) + ", Response " + this.getRule();
     }
 }

@@ -196,7 +196,6 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
         int index = networkPacket.getMsgIndex();
         NetworkPacket toSend = core.getPacket(index);
         if (toSend != null && toSend.equals(networkPacket) ) {
-            log("sending again ff: " + toSend);
             core.removeSendPacket(networkPacket);
             radioTX(networkPacket);
 
@@ -209,7 +208,6 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
 
 
             if (radio.isTransmitting() || radio.isReceiving() || radio.isInterfered()|| doneTx > actualTime) {
-                log("buffering " + np);
                 lastTx = Math.max(lastTx, simulation.getSimulationTime()) + 1 * Simulation.MILLISECOND;
                 simulation.scheduleEvent(new MoteTimeEvent(this, 0) {
                     @Override

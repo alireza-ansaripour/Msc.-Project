@@ -1,5 +1,6 @@
 package com.github.sdnwiselab.sdnwise.Ctrl;
 
+import com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree.SpaningTreeGenerator;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IPacketListener;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.ITopoUpdateListener;
@@ -17,7 +18,8 @@ public class Controller {
     private ArrayList<IPacketListener> packetListeners = new ArrayList<>();
     private ArrayList<ITopoUpdateListener> topoUpdateListeners = new ArrayList<>();
     private Class [] modules = new Class[]{
-        Topology.class,
+            Topology.class,
+            SpaningTreeGenerator.class
     };
 
     public Controller() {
@@ -55,10 +57,17 @@ public class Controller {
             }
         }
     }
+
     public void handleIncommingPacket(NetworkPacket networkPacket){
         sink.logI("ctrl packet " + networkPacket.toString());
         for (IPacketListener listener  : packetListeners) {
             listener.receive(networkPacket);
+        }
+    }
+
+    public void notifyTopologyChange(Topology topology){
+        for (ITopoUpdateListener listener : topoUpdateListeners){
+            listener.onTopoUpdate(topology);
         }
     }
 
@@ -72,7 +81,6 @@ public class Controller {
     private static Controller controller;
 
     public void sendResponse(NetworkPacket networkPacket){
-        sink.logI(networkPacket.toString());
         this.sink.radioTX(networkPacket);
     }
     public static Controller getInstance(CoojaSink sink){

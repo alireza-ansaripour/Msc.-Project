@@ -1056,7 +1056,7 @@ public abstract class AbstractCore {
 
 
             for (RequestPacket rp : rps) {
-                log(Level.INFO, "send request to ctrl");
+                log(Level.INFO, "send request to ctrl " + packet);
                 controllerTX(rp);
             }
             buffer.add(packet);
@@ -1228,7 +1228,6 @@ public abstract class AbstractCore {
                     });
                     log(Level.INFO, "action done");
                     packet.getRule().getStats().increaseCounter();
-                    log(Level.INFO, "fuck it");
                 }
             }
             for(int i =0 ; i< buffer.size();){

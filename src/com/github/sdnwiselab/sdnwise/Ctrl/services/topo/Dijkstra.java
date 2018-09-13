@@ -17,6 +17,13 @@ class Vertex implements Comparable<Vertex> {
     public Vertex previous;
     public Vertex(String argName) { name = argName; }
     public String toString() { return name; }
+
+    @Override
+    public boolean equals(Object obj) {
+        Vertex v = (Vertex) obj;
+        return v.name.equals(name);
+    }
+
     public int compareTo(Vertex other)
     {
         return Double.compare(minDistance, other.minDistance);
@@ -29,7 +36,6 @@ class Edge
     public final Vertex target;
     public final double weight;
     public Edge(Vertex argTarget, double argWeight) { target = argTarget; weight = argWeight; }
-
 
     @Override
     public int hashCode() {

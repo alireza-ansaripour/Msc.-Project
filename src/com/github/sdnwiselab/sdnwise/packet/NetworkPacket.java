@@ -18,6 +18,7 @@ package com.github.sdnwiselab.sdnwise.packet;
 
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
 
+
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -47,7 +48,8 @@ public class NetworkPacket implements Cloneable {
             TTL_INDEX = 7,
             NXH_INDEX = 8,
             MSG_INDEX = 10,
-            CUR_INDEX = 11;
+            CUR_INDEX = 11,
+            TUN_INDEX = 13;
 
     /**
      * The possible values of the type of a packet.
@@ -63,9 +65,9 @@ public class NetworkPacket implements Cloneable {
             ACK = 8;
 
     /**
-     * An SDN-WISE header is always 10 bytes long.
+     * An SDN-WISE header is always 13 bytes long.
      */
-    public static final byte DFLT_HDR_LEN = 13;
+    public static byte DFLT_HDR_LEN = 13;
 
     /**
      * The maximum number of hops allowed in the network.
@@ -106,6 +108,8 @@ public class NetworkPacket implements Cloneable {
                 return NXH_INDEX;
             case "MSG":
                 return MSG_INDEX;
+            case "TUN":
+                return TUN_INDEX;
 
             default:
                 return Integer.parseInt(b);
@@ -146,6 +150,7 @@ public class NetworkPacket implements Cloneable {
                 return "NXH";
             case (MSG_INDEX):
                 return "MSG";
+
             default:
                 return String.valueOf(b);
         }

@@ -133,9 +133,9 @@ public class SinkCore extends AbstractCore {
         setSinkDistance(0);
         setSinkRssi(CTRL_RSSI);
         setActive(true);
-        RegProxyPacket rpp = new RegProxyPacket(1, getMyAddress(), switchDPid,
-                switchMac, switchPort, addrController);
-        controllerTX(rpp);
+//        RegProxyPacket rpp = new RegProxyPacket(1, getMyAddress(), switchDPid,
+//                switchMac, switchPort, addrController);
+//        controllerTX(rpp);
     }
 
     @Override
