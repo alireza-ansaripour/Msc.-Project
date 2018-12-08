@@ -160,21 +160,3 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
         ctrl = controller;
     }
 }
-
-//                for (int id : graph.keySet()) {
-//                    if (pathSets.contains(id))
-//                        continue;
-//                    ArrayList<Integer> path = getPathFromCtrl(id);
-//                    if (path.size() == 1)
-//                        continue;
-//                    System.out.println("path to " + id + " is : " + path);
-//                    pathSets.add(id);
-//                    List<Window> windows = new ArrayList<>();
-//                    windows.add(Window.fromString("P.TYP == 4"));
-//                    ArrayList<NodeAddress> pathNA = new ArrayList<>();
-//                    for (Integer nId : path)
-//                        pathNA.add(new NodeAddress(nId));
-//                    OpenPathPacket pathPacket = new OpenPathPacket(1, new NodeAddress(1), new NodeAddress(srcID), pathNA);
-//                    pathPacket.setNxh(new NodeAddress(path.get(1)));
-//                    pathPacket.setWindows(windows);
-//                    ctrl.sendResponse(pathPacket);

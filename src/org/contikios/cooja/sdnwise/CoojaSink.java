@@ -52,28 +52,19 @@ public class CoojaSink extends AbstractCoojaMote {
 
     @Override
     public final void init() {
-        try {
-            battery = new SinkBattery();
-            Controller.getInstance(this);
-            String[] tmp = getControllerIpPort();
-
-            addrController = InetAddress.getByName(tmp[0]);
-            portController = Integer.parseInt(tmp[1]);
+        battery = new SinkBattery();
+        Controller.getInstance(this);
 
 
-
-            core = new SinkCore((byte) 1,
-                    new NodeAddress(this.getID()),
-                    battery,
-                    "00000001",
-                    "00:01:02:03:04:05",
-                    1,
-                    null);
-            core.start();
-            startThreads();
-        } catch (UnknownHostException ex) {
-            log(ex.getLocalizedMessage());
-        }
+        core = new SinkCore((byte) 1,
+                new NodeAddress(this.getID()),
+                battery,
+                "00000001",
+                "00:01:02:03:04:05",
+                1,
+                null);
+        core.start();
+        startThreads();
     }
 
     @Override

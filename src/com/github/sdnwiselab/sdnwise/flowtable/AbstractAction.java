@@ -63,7 +63,12 @@ public abstract class AbstractAction implements FlowTableInterface {
         /**
          * Matches the packet against the FlowTable.
          */
-        MATCH(7);
+        MATCH(7),
+
+        /**
+         * Subtracts a byte of a packet
+         */
+        SUB(8);
 
         /**
          * A byte representing the action.
