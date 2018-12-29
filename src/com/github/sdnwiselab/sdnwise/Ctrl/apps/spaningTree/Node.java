@@ -28,21 +28,17 @@ public class Node {
         if (id > end){
             end = id;
         }
-        boolean increaseOffset = false;
+
         for (int key : routingTable.keySet()){
             Range r = routingTable.get(key);
-            if (increaseOffset && r.start >= id){
+            if (r.start >= id){
                 r.start ++;
                 r.end ++;
                 offsets.put(r, offsets.get(r)+1);
                 r.offset++;
-            }else {
-
-                if (r.end == id-1){
-                    r.end++;
-                    increaseOffset = true;
-                    end++;
-                }
+            }
+            if(r.start < id && (r.end > id || r.end == id-1)){
+                r.end ++;
             }
         }
 
