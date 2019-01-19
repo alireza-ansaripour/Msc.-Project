@@ -45,6 +45,8 @@ public class CoojaSink extends AbstractCoojaMote {
 
     public CoojaSink(MoteType moteType, Simulation simulation) {
         super(moteType, simulation);
+        System.out.println(moteType);
+        System.out.println(moteType.getMoteInterfaceClasses());
     }
     public void logI(String msg){
         core.log(Level.INFO, msg);

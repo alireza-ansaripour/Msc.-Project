@@ -66,6 +66,7 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
     private Random random;
     private ApplicationRadio radio;
     private ApplicationLED leds;
+    private Button btn;
     private final Level defaultLogLevel = Level.FINEST;
     private Logger measureLogger;
     protected com.github.sdnwiselab.sdnwise.mote.battery.Battery battery;
@@ -78,6 +79,10 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
 
     public AbstractCoojaMote(MoteType moteType, Simulation simulation) {
         super(moteType, simulation);
+    }
+
+    public void writeString(String s){
+        runCommand(s);
     }
 
     public abstract void init();
@@ -101,6 +106,8 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
             random = simulation.getRandomGenerator();
             radio = (ApplicationRadio) getInterfaces().getRadio();
             leds = (ApplicationLED) getInterfaces().getLED();
+            btn = (Button) getInterfaces().getButton();
+            System.out.println("btn = " + btn);
             init();
             measureLogger = initLogger(Level.FINEST, core.getMyAddress()
                     + ".log", new MoteFormatter());
@@ -264,6 +271,7 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
         new Thread(new LoggerRunnable()).start();
     }
 
+    protected void runCommand(String input){}
     private class SenderRunnable implements Runnable {
 
         @Override

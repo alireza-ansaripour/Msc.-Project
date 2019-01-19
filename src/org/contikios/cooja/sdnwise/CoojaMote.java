@@ -68,4 +68,14 @@ public class CoojaMote extends AbstractCoojaMote {
                         + 44000 * Simulation.MILLISECOND
         );
     }
+
+    @Override
+    protected void runCommand(String input) {
+        String[] parts = input.split(" ");
+        byte[] data = parts[1].getBytes();
+        String dst = parts[0];
+        DataPacket dataPacket = new DataPacket(1, new NodeAddress(getID()), new NodeAddress(2), data);
+        core.send(dataPacket);
+
+    }
 }

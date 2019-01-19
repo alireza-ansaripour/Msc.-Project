@@ -135,14 +135,14 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
                 if(n == null)
                     continue;
                 System.out.println(n.id + "-" + n.routingTable);
+                if(n.id == lastNode)
+                    continue;
                 n.registerTunnel(tunId);
                 System.out.println(n.id + "-" + n.routingTable);
                 for (int k : n.routingTable.keySet()){
                     Node child = nodes.get(k);
                     Range range = n.routingTable.get(k);
                     if(n.id == 1)
-                        continue;
-                    if(n.id == lastNode)
                         continue;
                     FlowTableEntry entry = createResponse(child, range.offset);
                     ResponsePacket responsePacket = new ResponsePacket(1, new NodeAddress(1), new NodeAddress(n.id), entry, (byte) n.start );

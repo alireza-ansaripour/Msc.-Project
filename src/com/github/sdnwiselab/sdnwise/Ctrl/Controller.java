@@ -1,5 +1,6 @@
 package com.github.sdnwiselab.sdnwise.Ctrl;
 
+import com.github.sdnwiselab.sdnwise.Ctrl.SampleApp.Router;
 import com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree.SpaningTreeGenerator;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IPacketListener;
@@ -19,7 +20,8 @@ public class Controller {
     private ArrayList<ITopoUpdateListener> topoUpdateListeners = new ArrayList<>();
     private Class [] modules = new Class[]{
             Topology.class,
-            SpaningTreeGenerator.class
+            SpaningTreeGenerator.class,
+            Router.class
     };
 
     public Controller() {
