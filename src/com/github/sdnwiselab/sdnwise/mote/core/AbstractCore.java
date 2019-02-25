@@ -492,7 +492,6 @@ public abstract class AbstractCore {
         toSink.addAction(new ForwardUnicastAction(new NodeAddress(myAddress.intValue()-1)));
         toSink.getStats().setPermanent();
         flowTable.add(toSink);
-        System.out.println(toSink);
     }
 
     /**
@@ -751,12 +750,8 @@ public abstract class AbstractCore {
         return sinkRssi;
     }
 
-    private boolean flag = true;
-    private int i = 0;
     public void send(NetworkPacket packet){
-        if(i==0)
-            runFlowMatch(packet);
-        i = (i+1)%10;
+        runFlowMatch(packet);
     }
     /**
      * Sets the RSSI of the next best hop towards the Sink.
@@ -791,7 +786,7 @@ public abstract class AbstractCore {
      * @param rule the FlowTableEntry to add
      */
     protected final void insertRule(final FlowTableEntry rule) {
-        log(Level.INFO, "insert rule");
+
 
         int i = searchRule(rule);
         if (i != -1) {
@@ -799,8 +794,11 @@ public abstract class AbstractCore {
             log(Level.INFO, "Replacing rule " + rule
                     + " at position " + i);
         } else {
+            rule.getStats().setPermanent();
             flowTable.add(rule);
             log(Level.INFO, "Inserting rule " + rule
+                    + " at position " + (flowTable.size() - 1));
+            System.out.println("Inserting rule " + rule
                     + " at position " + (flowTable.size() - 1));
         }
 
@@ -1035,7 +1033,9 @@ public abstract class AbstractCore {
     protected final void runFlowMatch(final NetworkPacket packet) {
         int i = 0;
         boolean matched = false;
+        log(Level.INFO, "The packet: " + packet);
         for (FlowTableEntry fte : flowTable) {
+            System.out.println("entry " + fte);
             i++;
             if (matchRule(fte, packet)) {
                 log(Level.FINE, "Matched Rule #" + i + " " + fte.toString());
@@ -1215,7 +1215,7 @@ public abstract class AbstractCore {
      */
     protected final void rxResponse(final ResponsePacket packet) {
         if (isAcceptedIdPacket(packet)) {
-            packet.getRule().setStats(new Stats());
+            packet.getRule().getStats().setPermanent();
 
             insertRule(packet.getRule());
             // run flow matching for every packet in bufer

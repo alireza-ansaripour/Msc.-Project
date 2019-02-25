@@ -56,8 +56,7 @@ public class CoojaSink extends AbstractCoojaMote {
     public final void init() {
         battery = new SinkBattery();
         Controller.getInstance(this);
-
-
+        System.out.println("here");
         core = new SinkCore((byte) 1,
                 new NodeAddress(this.getID()),
                 battery,
@@ -65,6 +64,8 @@ public class CoojaSink extends AbstractCoojaMote {
                 "00:01:02:03:04:05",
                 1,
                 null);
+
+        System.out.println("not here");
         core.start();
         startThreads();
     }

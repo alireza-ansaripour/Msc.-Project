@@ -107,7 +107,8 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
             radio = (ApplicationRadio) getInterfaces().getRadio();
             leds = (ApplicationLED) getInterfaces().getLED();
             btn = (Button) getInterfaces().getButton();
-            System.out.println("btn = " + btn);
+            System.out.println("btn ==" + btn);
+
             init();
             measureLogger = initLogger(Level.FINEST, core.getMyAddress()
                     + ".log", new MoteFormatter());

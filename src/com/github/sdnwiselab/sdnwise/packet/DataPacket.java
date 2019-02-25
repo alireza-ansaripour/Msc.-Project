@@ -80,4 +80,13 @@ public class DataPacket extends NetworkPacket {
     public final byte[] getData() {
         return super.getPayload();
     }
+
+    @Override
+    public String toString() {
+        StringBuilder output = new StringBuilder();
+        for (byte b : getData()){
+            output.append(b);
+        }
+        return super.toString() + output;
+    }
 }

@@ -34,8 +34,10 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
 
     public ArrayList<Integer> findPath(int src, int dst){
         try {
-            for (Vertex v : graph.values())
+            for (Vertex v : graph.values()){
                 v.minDistance = Double.POSITIVE_INFINITY;
+                v.previous = null;
+            }
             Dijkstra.computePaths(graph.get(src));
             List<Vertex> path = Dijkstra.getShortestPathTo(graph.get(dst));
             ArrayList<Integer> p = new ArrayList<>();
@@ -55,6 +57,7 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
 //        Collections.reverse(p);
         return p;
     }
+
 
 
     private boolean containsLink(int src, int dst){
@@ -117,6 +120,19 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
                 flag = true;
         return flag;
     }
+    private HashMap<Integer, ArrayList<Integer>> nodeStatus = new HashMap<>();
+    private boolean checkArrayEquality(ArrayList<Integer> arr1, ArrayList<Integer> arr2){
+        boolean equal = true;
+        for (Integer i1: arr1) {
+            if (!arr2.contains(i1))
+                equal = false;
+        }
+        for (Integer i2:arr2){
+            if(!arr1.contains(i2))
+                equal = false;
+        }
+        return equal;
+    }
     private void handleReportPacket(ReportPacket reportPacket){
         NodeAddress src = reportPacket.getSrc();
         int srcID = src.intValue();
@@ -158,5 +174,6 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
     public void startUp(Controller controller) {
         controller.addPacketListener(this);
         ctrl = controller;
+        TopologyService.setTopo(this);
     }
 }

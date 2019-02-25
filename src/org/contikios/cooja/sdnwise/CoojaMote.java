@@ -50,23 +50,6 @@ public class CoojaMote extends AbstractCoojaMote {
         super.execute(time);
         CoojaMote mote = this;
         Simulation simulation = getSimulation();
-
-        simulation.scheduleEvent(
-                new MoteTimeEvent(this, 200000 * simulation.MILLISECOND) {
-                    @Override
-                    public void execute(long t) {
-                        NodeAddress addr = new NodeAddress("0.10");
-                        NetworkPacket np = new DataPacket(1, new NodeAddress(mote.getID()), addr,new byte[]{1});
-                        if(mote.getID()==6 ) {
-                            log("sending data");
-//                            mote.core.send(np);
-
-                        }
-                    }
-                },
-                simulation.getSimulationTime()
-                        + 44000 * Simulation.MILLISECOND
-        );
     }
 
     @Override
@@ -74,7 +57,7 @@ public class CoojaMote extends AbstractCoojaMote {
         String[] parts = input.split(" ");
         byte[] data = parts[1].getBytes();
         String dst = parts[0];
-        DataPacket dataPacket = new DataPacket(1, new NodeAddress(getID()), new NodeAddress(2), data);
+        DataPacket dataPacket = new DataPacket(1, new NodeAddress(getID()), new NodeAddress(dst), data);
         core.send(dataPacket);
 
     }

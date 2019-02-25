@@ -3,11 +3,10 @@ package com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree;
 import com.github.sdnwiselab.sdnwise.Ctrl.Controller;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.ITopoUpdateListener;
+import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Dijkstra;
 import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Topology;
-import com.github.sdnwiselab.sdnwise.flowtable.FlowTableEntry;
-import com.github.sdnwiselab.sdnwise.flowtable.ForwardUnicastAction;
-import com.github.sdnwiselab.sdnwise.flowtable.SetAction;
-import com.github.sdnwiselab.sdnwise.flowtable.Window;
+import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Vertex;
+import com.github.sdnwiselab.sdnwise.flowtable.*;
 import com.github.sdnwiselab.sdnwise.packet.ResponsePacket;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
 
@@ -25,10 +24,12 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
     public void startUp(Controller context) {
         context.addTopoChangeListener(this);
         controller = context;
+        SpanningTreeService.setSpaningTreeGenerator(this);
     }
 
-
-
+    public HashMap<Integer, Node> getNodes() {
+        return nodes;
+    }
 
     private void updatePathNxtHop(ArrayList<Integer> path, HashMap<Integer, ArrayList<Integer>>[] nextHopList){
         int id = path.get(path.size()-1);
@@ -100,6 +101,7 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
                 responsePacket.setTunnelIndex((byte) node.start);
                 int nextHop = topology.getPathFromCtrl(node.id).get(1);
                 responsePacket.setNxh("0." + nextHop);
+
                 this.controller.sendResponse(responsePacket);
             }
         }
@@ -146,6 +148,7 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
                         continue;
                     FlowTableEntry entry = createResponse(child, range.offset);
                     ResponsePacket responsePacket = new ResponsePacket(1, new NodeAddress(1), new NodeAddress(n.id), entry, (byte) n.start );
+                    responsePacket.setTtl((byte) Stats.SDN_WISE_RL_TTL_MAX);
                     responsePacket.setTunnelIndex((byte) n.start);
                     int nextHop = paths.get(n.id).get(1);
                     responsePacket.setNxh("0." + nextHop);
@@ -181,6 +184,8 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
         entry.addWindow(Window.fromString("P.13 <= " + node.end));
         entry.addAction(new ForwardUnicastAction(new NodeAddress(node.id)));
         entry.addAction(new SetAction("SET P.13 = P.13 - " + offset));
+        entry.getStats().setPermanent();
+        System.out.println(entry.getStats());
         return entry;
     }
 
