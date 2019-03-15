@@ -4,22 +4,24 @@ import java.util.ArrayList;
 
 public class Node {
     private int id;
-    private ArrayList<Link> links = new ArrayList<>();
 
-    public Node(int id, ArrayList<Link> links) {
+    private ArrayList<Node> neighbours;
+
+    public Node(int id) {
         this.id = id;
-        this.links = links;
     }
 
     public int getId() {
         return id;
     }
 
-    public ArrayList<Link> getLinks() {
-        return links;
+    public ArrayList<Node> getNeighbours() {
+        return neighbours;
     }
-    public void addLink(Link link){
-        this.links.add(link);
+
+    public void addNeighbours(Node node) {
+        this.neighbours.add(node);
     }
+
 
 }

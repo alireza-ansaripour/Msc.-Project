@@ -3,7 +3,6 @@ package com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree;
 import com.github.sdnwiselab.sdnwise.Ctrl.Controller;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.ITopoUpdateListener;
-import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Dijkstra;
 import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Topology;
 import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Vertex;
 import com.github.sdnwiselab.sdnwise.flowtable.*;
@@ -15,7 +14,7 @@ import java.util.*;
 
 public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListener {
     private Set<Integer> pathSets = new HashSet<>();
-    HashMap<Integer, ArrayList<Integer>>[] nextHopList = new HashMap[30];
+    HashMap<Integer, ArrayList<Integer>>[] nextHopList = new HashMap[100];
     HashMap<Integer, Node> nodes = new HashMap<>();
     private HashMap<Integer, ArrayList<Integer>>paths = new HashMap<>();
     Controller controller;
@@ -74,7 +73,7 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
 
     private void assignTunnel(Topology topology){
         ArrayDeque<Node> nodes = new ArrayDeque<>();
-        Node first = new Node(1, 1, 100);
+        Node first = new Node(1, 1, 1);
 
         nodes.push(first);
 
@@ -111,11 +110,23 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
 
     private void initSpanningTree(Topology topology){
         updateNxhopList(topology);
+        Node node = new Node(1,0,0);
+        nodes.put(1, node);
 
-        for (int i = 1; i <nextHopList.length ; i++) {
-            System.out.println(i + " : " + nextHopList[i]);
-        }
 
+//        for (int i = 1; i <nextHopList.length ; i++) {
+//            HashMap<Integer, ArrayList<Integer>> list =nextHopList[i];
+//            if (list == null)
+//                continue;
+//            int sum = 0;
+//            for(ArrayList<Integer> arr : list.values()){
+//
+//                sum += arr.size();
+//            }
+//
+//            System.out.printf("required space for node %2d : %2d row\n", i, sum);
+//        }
+//
         assignTunnel(topology);
     }
 
@@ -127,8 +138,11 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
                 continue;
             pathSets.add(id);
             ArrayList<Integer> path = topology.getPathFromCtrl(id);
+            System.out.println("id " + id + " path " + path);
+            if(path.size() == 1)
+                continue;
             int lastNode = path.get(path.size()-2);
-            System.out.println(paths.get(lastNode));
+            System.out.println("hello " + paths.get(lastNode));
             int tunId = nodes.get(lastNode).addTunnel(id);
             System.out.println(tunId);
             nodes.put(id, new Node(id, tunId, tunId));
@@ -136,21 +150,23 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
                 Node n = nodes.get(key);
                 if(n == null)
                     continue;
-                System.out.println(n.id + "-" + n.routingTable);
+                System.out.println(n.id + "_" + n.routingTable);
                 if(n.id == lastNode)
                     continue;
                 n.registerTunnel(tunId);
-                System.out.println(n.id + "-" + n.routingTable);
+                System.out.println(n.id + "_" + n.routingTable);
                 for (int k : n.routingTable.keySet()){
                     Node child = nodes.get(k);
                     Range range = n.routingTable.get(k);
-                    if(n.id == 1)
-                        continue;
                     FlowTableEntry entry = createResponse(child, range.offset);
                     ResponsePacket responsePacket = new ResponsePacket(1, new NodeAddress(1), new NodeAddress(n.id), entry, (byte) n.start );
                     responsePacket.setTtl((byte) Stats.SDN_WISE_RL_TTL_MAX);
                     responsePacket.setTunnelIndex((byte) n.start);
-                    int nextHop = paths.get(n.id).get(1);
+                    int nextHop;
+                    if(n.id != 1)
+                        nextHop = paths.get(n.id).get(1);
+                    else
+                        nextHop = 1;
                     responsePacket.setNxh("0." + nextHop);
                     this.controller.sendResponse(responsePacket);
                 }
@@ -172,6 +188,16 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
         }
     }
 
+    @Override
+    public void onNodeAdd(Vertex node) {
+
+    }
+
+    @Override
+    public void onNodeRemove(Vertex node) {
+
+    }
+
 
     private FlowTableEntry createResponse(Node node){
         return createResponse(node, 0);
@@ -185,7 +211,6 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
         entry.addAction(new ForwardUnicastAction(new NodeAddress(node.id)));
         entry.addAction(new SetAction("SET P.13 = P.13 - " + offset));
         entry.getStats().setPermanent();
-        System.out.println(entry.getStats());
         return entry;
     }
 

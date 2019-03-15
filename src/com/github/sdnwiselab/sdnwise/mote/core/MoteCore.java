@@ -60,6 +60,7 @@ public class MoteCore extends AbstractCore {
     @Override
     public final void controllerTX(final NetworkPacket np) {
         np.setNxh(getNextHopVsSink());
+        log(Level.INFO, "to ctrl " + np.toString());
         radioTX(np);
     }
 

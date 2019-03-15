@@ -28,9 +28,9 @@ public class Router implements IDummyCtrlModule, IPacketListener {
 
         try{
             RequestPacket rp = (RequestPacket) packet;
-            System.out.println("The request packet: " + rp);
+
             NetworkPacket p = new NetworkPacket(rp.getData());
-            System.out.println("The content packet " + p);
+
             int src = p.getSrc().intValue();
             int dst = p.getDst().intValue();
             System.out.println("rout from " + src + " to " + dst + ":" + p.toString());
@@ -52,7 +52,7 @@ public class Router implements IDummyCtrlModule, IPacketListener {
 
             int nextHop = TopologyService.getPath(rp.getDst().intValue(), rp.getSrc().intValue()).get(1);
             responsePacket.setNxh(new NodeAddress(nextHop));
-            System.out.println("sending response: "+ responsePacket);
+
             ctrl.sendResponse(responsePacket);
 
 

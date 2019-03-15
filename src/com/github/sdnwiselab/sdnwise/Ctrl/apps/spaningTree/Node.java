@@ -16,7 +16,8 @@ public class Node {
 
     public int addTunnel(int id){
         this.addRange(id, new Range(this.end + 1, this.end + 1));
-        return this.end + 1;
+        this.end ++;
+        return this.end;
     }
 
     public void addRange(int key, Range range) {

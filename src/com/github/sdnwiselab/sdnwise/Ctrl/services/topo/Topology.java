@@ -2,12 +2,12 @@ package com.github.sdnwiselab.sdnwise.Ctrl.services.topo;
 
 
 import com.github.sdnwiselab.sdnwise.Ctrl.Controller;
+import com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree.SpanningTreeService;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IPacketListener;
+import com.github.sdnwiselab.sdnwise.flowtable.FlowTableEntry;
 import com.github.sdnwiselab.sdnwise.flowtable.Window;
-import com.github.sdnwiselab.sdnwise.packet.NetworkPacket;
-import com.github.sdnwiselab.sdnwise.packet.OpenPathPacket;
-import com.github.sdnwiselab.sdnwise.packet.ReportPacket;
+import com.github.sdnwiselab.sdnwise.packet.*;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
 
 import java.util.*;
@@ -99,11 +99,15 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
 
     @Override
     public void receive(NetworkPacket packet) {
-        if(packet.getTyp() == NetworkPacket.REPORT){
-            handleReportPacket((ReportPacket) packet);
+        switch (packet.getTyp()){
+            case NetworkPacket.REPORT:
+                handleReportPacket((ReportPacket) packet);
+                break;
+            case NetworkPacket.REQUEST:
+                handleRequestPacket((RequestPacket) packet);
+                break;
         }
     }
-
 
     private Set<Integer> checkedNodes = new HashSet<>();
     private Set<Integer> unCheckedNodes = new HashSet<>();
@@ -120,7 +124,9 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
                 flag = true;
         return flag;
     }
+
     private HashMap<Integer, ArrayList<Integer>> nodeStatus = new HashMap<>();
+
     private boolean checkArrayEquality(ArrayList<Integer> arr1, ArrayList<Integer> arr2){
         boolean equal = true;
         for (Integer i1: arr1) {
@@ -133,40 +139,111 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
         }
         return equal;
     }
-    private void handleReportPacket(ReportPacket reportPacket){
-        NodeAddress src = reportPacket.getSrc();
-        int srcID = src.intValue();
-        checkedNodes.add(srcID);
-        unCheckedNodes.remove(srcID);
-        ArrayList<Integer> neighbours = new ArrayList<>();
-        for (NodeAddress address: reportPacket.getNeighbors().keySet()){
-            int addr = address.intValue();
-            neighbours.add(addr);
-            if (!checkedNodes.contains(addr)){
-                unCheckedNodes.add(addr);
-                updateFlag = true;
+
+
+    private void handleReponseTYP1(RequestPacket requestPacket){
+        DataPacket dataPacket = new DataPacket(requestPacket.getData());
+        Vertex vertex = graph.get(requestPacket.getSrc().intValue());
+        int neibour = dataPacket.getData()[0];
+        int address = requestPacket.getSrc().intValue();
+        if(vertex == null){
+            vertex = new Vertex(""+ address);
+            graph.put(address, vertex);
+        }
+
+        Vertex srcNode = graph.get(neibour);
+        srcNode.addAdj(vertex);
+        vertex.addAdj(srcNode);
+        System.out.println("have to handle "+ vertex);
+        System.out.println(graph);
+        ctrl.notifyTopologyChange(this);
+        ArrayList<Integer> path = TopologyService.getPath(1, address);
+        System.out.println("the path is " + path);
+        int nxHop = path.get(1);
+        int tunID = SpanningTreeService.getTunnelID(address);
+        System.out.println(tunID);
+        ResponsePacket responsePacket = new ResponsePacket(1,new NodeAddress(1),new NodeAddress(0), new FlowTableEntry(), (byte) tunID);
+        responsePacket.setNxh(new NodeAddress(nxHop));
+        ctrl.sendResponse(responsePacket);
+    }
+
+    private void handleRequestPacket(RequestPacket requestPacket){
+        NetworkPacket networkPacket = new NetworkPacket(requestPacket.getData());
+        System.out.println("the request packet is " + requestPacket);
+        System.out.println("the network packet is " + networkPacket);
+        System.out.println("the packet type " + networkPacket.getTyp());
+        if (networkPacket.getDst().intValue() == 0){
+            switch (networkPacket.getTyp()){
+                case NetworkPacket.DATA:
+                    handleReponseTYP1(requestPacket);
+                    break;
+                case NetworkPacket.RESPONSE:
+                    handleResponseTYP2(requestPacket);
+                    break;
             }
         }
-        Vertex vertex = graph.get(srcID) == null? new Vertex(""+srcID): graph.get(srcID);
-        ArrayList<Integer> list = new ArrayList<>();
-        for (Edge v : vertex.adjacencies){
-            list.add(Integer.parseInt(v.target.name));
-        }
-        Boolean diff = checkUpdate(list, neighbours);
-        if (diff)
-            System.out.println("diff "+ srcID + " - " + diff+ " - " + neighbours + "-" + list);
 
-        updateFlag = diff ? true : updateFlag;
-        if(diff) {
-            updateGraph(srcID, neighbours);
-            System.out.println("update node " + srcID + "neighbours " + neighbours);
-        }
+    }
 
+    private void handleResponseTYP2(RequestPacket requestPacket) {
 
-        if(updateFlag && unCheckedNodes.size() == 0){
+    }
+
+    boolean flag = false;
+    private void handleReportPacket(ReportPacket reportPacket){
+        if (!flag) {
+            NodeAddress src = reportPacket.getSrc();
+            int srcID = src.intValue();
+            Vertex vertex = new Vertex(Integer.toString(srcID));
+            graph.put(srcID, vertex);
+            for (NodeAddress address: reportPacket.getNeighbors().keySet()){
+                int addr = address.intValue();
+                if(graph.containsKey(addr)){
+                    vertex.addAdj(graph.get(addr));
+                }
+
+                DataPacket dataPacket = new DataPacket(1, new NodeAddress(1), new NodeAddress(0), new byte[]{1});
+                dataPacket.setNxh(address);
+                ctrl.sendResponse(dataPacket);
+            }
             ctrl.notifyTopologyChange(this);
-            updateFlag = false;
         }
+        flag = true;
+
+
+//        if(!checkedNodes.contains(srcID))
+//            System.out.println("report packet for src " + srcID);
+//        checkedNodes.add(srcID);
+//        unCheckedNodes.remove(srcID);
+//
+//
+//
+//        ArrayList<Integer> neighbours = new ArrayList<>();
+//        for (NodeAddress address: reportPacket.getNeighbors().keySet()){
+//            int addr = address.intValue();
+//            neighbours.add(addr);
+//            if (!checkedNodes.contains(addr)){
+//                unCheckedNodes.add(addr);
+//                updateFlag = true;
+//            }
+//        }
+//        Vertex vertex = graph.get(srcID) == null? new Vertex(""+srcID): graph.get(srcID);
+//        ArrayList<Integer> list = new ArrayList<>();
+//        for (Edge v : vertex.adjacencies){
+//            list.add(Integer.parseInt(v.target.name));
+//        }
+//        Boolean diff = checkUpdate(list, neighbours);
+//
+//        updateFlag = diff ? true : updateFlag;
+//        if(diff) {
+//            updateGraph(srcID, neighbours);
+//        }
+//
+//
+//        if(updateFlag && unCheckedNodes.size() == 0){
+//            ctrl.notifyTopologyChange(this);
+//            updateFlag = false;
+//        }
 
     }
     private Controller ctrl;

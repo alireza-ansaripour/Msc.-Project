@@ -107,7 +107,6 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
             radio = (ApplicationRadio) getInterfaces().getRadio();
             leds = (ApplicationLED) getInterfaces().getLED();
             btn = (Button) getInterfaces().getButton();
-            System.out.println("btn ==" + btn);
 
             init();
             measureLogger = initLogger(Level.FINEST, core.getMyAddress()
@@ -259,7 +258,7 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
                 }
                 doneTx = actualTime + 1 ;
                 np.setCUR(core.getMyAddress().getArray()[0], core.getMyAddress().getArray()[1]);
-                log("sending: " + np );
+
                 RadioPacket pk = new COOJARadioPacket(np.toByteArray());
                 //battery.transmitRadio(pk.getPacketData().length);
                 radio.startTransmittingPacket(pk,1/2 * simulation.MILLISECOND);

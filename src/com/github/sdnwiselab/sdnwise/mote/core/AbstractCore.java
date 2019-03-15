@@ -327,13 +327,12 @@ public abstract class AbstractCore {
             if ((cntReport) >= cntReportMax) {
                 cntReport = 0;
                 cntBeacon = 0;
-                log(Level.INFO,"report");
+
                 controllerTX(prepareReport());
             }
 
             if ((cntBeacon) >= cntBeaconMax) {
                 cntBeacon = 0;
-                log(Level.INFO, "beacon");
                 radioTX(prepareBeacon());
             }
 
@@ -798,8 +797,6 @@ public abstract class AbstractCore {
             flowTable.add(rule);
             log(Level.INFO, "Inserting rule " + rule
                     + " at position " + (flowTable.size() - 1));
-            System.out.println("Inserting rule " + rule
-                    + " at position " + (flowTable.size() - 1));
         }
 
     }
@@ -1014,7 +1011,7 @@ public abstract class AbstractCore {
      */
     protected final void radioTX(final NetworkPacket np) {
         np.decrementTtl();
-
+        log(Level.INFO,"sending packet" + np.toString());
         txQueue.add(np);
     }
 
@@ -1035,10 +1032,10 @@ public abstract class AbstractCore {
         boolean matched = false;
         log(Level.INFO, "The packet: " + packet);
         for (FlowTableEntry fte : flowTable) {
-            System.out.println("entry " + fte);
+
             i++;
             if (matchRule(fte, packet)) {
-                log(Level.FINE, "Matched Rule #" + i + " " + fte.toString());
+                log(Level.INFO, "Matched Rule #" + i + " " + fte.toString());
                 matched = true;
                 fte.getActions().stream().forEach((a) -> {
                     runAction(a, packet);
@@ -1085,7 +1082,7 @@ public abstract class AbstractCore {
             log(Level.INFO, "CALLBACK");
             dataCallback(packet);
         } else if (isAcceptedIdAddress(packet.getNxh())) {
-            log(Level.INFO, "FLOW MACH");
+            log(Level.INFO, "FLOW MACH " + packet);
             runFlowMatch(packet);
         }
     }
@@ -1137,7 +1134,7 @@ public abstract class AbstractCore {
 
     public HashMap<Integer, NetworkPacket>sendPackets = new HashMap<>();
     protected void rxAck(NetworkPacket packet){
-        log(Level.INFO, "ack for s " + (int) packet.getMsgIndex());
+
 
         NetworkPacket packet1 = getPacket((int) packet.getMsgIndex());
         if (packet1 == null)

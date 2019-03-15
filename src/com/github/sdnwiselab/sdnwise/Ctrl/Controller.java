@@ -5,7 +5,9 @@ import com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree.SpaningTreeGenerator;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IPacketListener;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.ITopoUpdateListener;
+import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Node;
 import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Topology;
+import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Vertex;
 import com.github.sdnwiselab.sdnwise.packet.*;
 import org.contikios.cooja.sdnwise.CoojaSink;
 
@@ -21,7 +23,7 @@ public class Controller {
     private Class [] modules = new Class[]{
             Topology.class,
             SpaningTreeGenerator.class,
-            Router.class
+//            Router.class
     };
 
     public Controller() {
@@ -73,6 +75,16 @@ public class Controller {
         }
     }
 
+    public void notifyNodeAdd(Vertex node){
+        for (ITopoUpdateListener listener:topoUpdateListeners)
+            listener.onNodeAdd(node);
+    }
+
+    public void notifyNodeRemove(Vertex node){
+        for (ITopoUpdateListener listener:topoUpdateListeners)
+            listener.onNodeRemove(node);
+    }
+
 
     public void addPacketListener(IPacketListener listener){
         packetListeners.add(listener);
@@ -80,9 +92,12 @@ public class Controller {
 
     public void addTopoChangeListener(ITopoUpdateListener listener){topoUpdateListeners.add(listener);}
 
+
+
     private static Controller controller;
 
     public void sendResponse(NetworkPacket networkPacket){
+        System.out.println("sending packet" + networkPacket);
         this.sink.radioTX(networkPacket);
     }
     public static Controller getInstance(CoojaSink sink){
