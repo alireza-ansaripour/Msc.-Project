@@ -277,12 +277,15 @@ public abstract class AbstractCore {
      * @param rssi the RSSI of the NetworkPacket
      */
     public final void rxRadioPacket(final NetworkPacket np, final int rssi) {
+
         if (np.getDst().isBroadcast()
+                || np.getNxh().isBroadcast()
                 || np.getNxh().equals(myAddress)
                 || acceptedId.contains(np.getNxh())
                 || !np.isSdnWise()) {
             if(np.getTyp() != ACK)
                 radioTX(prepareAck(np));
+
             rxHandler(np, rssi);
         }
     }
@@ -308,7 +311,7 @@ public abstract class AbstractCore {
     }
 
     Random random = new Random();
-    int startDelay = random.nextInt(10);
+    int startDelay = random.nextInt(5);
     /**
      * This method is called every second, and it is used to decide when to send
      * a Beacon, a Report, and to age the entries of the FlowTable.

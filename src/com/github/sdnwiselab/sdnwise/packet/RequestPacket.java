@@ -33,10 +33,11 @@ public class RequestPacket extends NetworkPacket {
     /**
      * Indexes and lengths of the fields.
      */
-    private static final byte ID_INDEX = 0, PART_INDEX = 1,
-            REQUEST_HEADER_SIZE = 3,
-            REQUEST_PAYLOAD_SIZE = NetworkPacket.MAX_PACKET_LENGTH
-            - (DFLT_HDR_LEN + REQUEST_HEADER_SIZE), TOTAL_INDEX = 2;
+    private static final byte ID_INDEX = 0,
+            PART_INDEX =(byte) 1,
+            REQUEST_HEADER_SIZE =(byte) 3,
+            REQUEST_PAYLOAD_SIZE = (byte) (NetworkPacket.MAX_PACKET_LENGTH - (DFLT_HDR_LEN + REQUEST_HEADER_SIZE)),
+            TOTAL_INDEX = 2;
 
     /**
      * Creates an array of request packets from a byte array.
@@ -260,6 +261,6 @@ public class RequestPacket extends NetworkPacket {
     @Override
     public String toString() {
         DataPacket dataPacket = new DataPacket(this.getData());
-        return super.toString() + "Request " + dataPacket.toString();
+        return super.toString() + " Request " + dataPacket.toString();
     }
 }

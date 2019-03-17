@@ -5,8 +5,7 @@ import com.github.sdnwiselab.sdnwise.Ctrl.Controller;
 import com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree.SpanningTreeService;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IPacketListener;
-import com.github.sdnwiselab.sdnwise.flowtable.FlowTableEntry;
-import com.github.sdnwiselab.sdnwise.flowtable.Window;
+import com.github.sdnwiselab.sdnwise.flowtable.*;
 import com.github.sdnwiselab.sdnwise.packet.*;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
 
@@ -111,6 +110,7 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
 
     private Set<Integer> checkedNodes = new HashSet<>();
     private Set<Integer> unCheckedNodes = new HashSet<>();
+
     private boolean updateFlag = false;
 
     private boolean checkUpdate(ArrayList<Integer> list1, ArrayList<Integer> list2){
@@ -150,50 +150,63 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
             vertex = new Vertex(""+ address);
             graph.put(address, vertex);
         }
-
         Vertex srcNode = graph.get(neibour);
         srcNode.addAdj(vertex);
         vertex.addAdj(srcNode);
-        System.out.println("have to handle "+ vertex);
-        System.out.println(graph);
-        ctrl.notifyTopologyChange(this);
+        System.out.println(graph.keySet());
+        ctrl.notifyNodeAdd(vertex);
         ArrayList<Integer> path = TopologyService.getPath(1, address);
-        System.out.println("the path is " + path);
         int nxHop = path.get(1);
         int tunID = SpanningTreeService.getTunnelID(address);
         System.out.println(tunID);
-        ResponsePacket responsePacket = new ResponsePacket(1,new NodeAddress(1),new NodeAddress(0), new FlowTableEntry(), (byte) tunID);
+        FlowTableEntry entry = new FlowTableEntry();
+        int src = 0;
+        int dst = 0;
+        entry.addWindow(Window.fromString("P.SRC == " + src));
+        entry.addWindow(Window.fromString("P.DST == " + dst));
+        entry.addWindow(Window.fromString("P.13 == " + neibour));
+        entry.addAction(new ForwardBroadcastAction());
+        entry.addAction(new SetAction("SET P.13 == " + address));
+        ResponsePacket responsePacket = new ResponsePacket(1,new NodeAddress(1),new NodeAddress(address), entry, (byte) tunID);
         responsePacket.setNxh(new NodeAddress(nxHop));
         ctrl.sendResponse(responsePacket);
     }
 
+    ArrayList<Integer>addedNodes = new ArrayList<>();
+
     private void handleRequestPacket(RequestPacket requestPacket){
+
+        if (requestPacket.getSrc().intValue() == 1)
+            return;
+
         NetworkPacket networkPacket = new NetworkPacket(requestPacket.getData());
+        int addr = requestPacket.getSrc().intValue();
+        if (addedNodes.contains(addr)) {
+            return;
+        }
+        addedNodes.add(addr);
+
+        System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         System.out.println("the request packet is " + requestPacket);
-        System.out.println("the network packet is " + networkPacket);
-        System.out.println("the packet type " + networkPacket.getTyp());
         if (networkPacket.getDst().intValue() == 0){
             switch (networkPacket.getTyp()){
                 case NetworkPacket.DATA:
                     handleReponseTYP1(requestPacket);
                     break;
-                case NetworkPacket.RESPONSE:
-                    handleResponseTYP2(requestPacket);
-                    break;
+//                case NetworkPacket.RESPONSE:
+//                    handleResponseTYP2(requestPacket);
+//                    break;
             }
         }
 
     }
 
-    private void handleResponseTYP2(RequestPacket requestPacket) {
-
-    }
-
     boolean flag = false;
+
     private void handleReportPacket(ReportPacket reportPacket){
+        NodeAddress src = reportPacket.getSrc();
+        int srcID = src.intValue();
         if (!flag) {
-            NodeAddress src = reportPacket.getSrc();
-            int srcID = src.intValue();
             Vertex vertex = new Vertex(Integer.toString(srcID));
             graph.put(srcID, vertex);
             for (NodeAddress address: reportPacket.getNeighbors().keySet()){
@@ -201,51 +214,15 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
                 if(graph.containsKey(addr)){
                     vertex.addAdj(graph.get(addr));
                 }
-
-                DataPacket dataPacket = new DataPacket(1, new NodeAddress(1), new NodeAddress(0), new byte[]{1});
+                DataPacket dataPacket = new DataPacket(1, new NodeAddress(0), new NodeAddress(0), new byte[]{1});
                 dataPacket.setNxh(address);
                 ctrl.sendResponse(dataPacket);
             }
-            ctrl.notifyTopologyChange(this);
+            ctrl.notifyNodeAdd(vertex);
         }
         flag = true;
-
-
-//        if(!checkedNodes.contains(srcID))
-//            System.out.println("report packet for src " + srcID);
-//        checkedNodes.add(srcID);
-//        unCheckedNodes.remove(srcID);
-//
-//
-//
-//        ArrayList<Integer> neighbours = new ArrayList<>();
-//        for (NodeAddress address: reportPacket.getNeighbors().keySet()){
-//            int addr = address.intValue();
-//            neighbours.add(addr);
-//            if (!checkedNodes.contains(addr)){
-//                unCheckedNodes.add(addr);
-//                updateFlag = true;
-//            }
-//        }
-//        Vertex vertex = graph.get(srcID) == null? new Vertex(""+srcID): graph.get(srcID);
-//        ArrayList<Integer> list = new ArrayList<>();
-//        for (Edge v : vertex.adjacencies){
-//            list.add(Integer.parseInt(v.target.name));
-//        }
-//        Boolean diff = checkUpdate(list, neighbours);
-//
-//        updateFlag = diff ? true : updateFlag;
-//        if(diff) {
-//            updateGraph(srcID, neighbours);
-//        }
-//
-//
-//        if(updateFlag && unCheckedNodes.size() == 0){
-//            ctrl.notifyTopologyChange(this);
-//            updateFlag = false;
-//        }
-
     }
+
     private Controller ctrl;
     @Override
     public void startUp(Controller controller) {

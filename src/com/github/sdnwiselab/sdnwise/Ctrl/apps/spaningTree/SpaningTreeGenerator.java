@@ -4,6 +4,7 @@ import com.github.sdnwiselab.sdnwise.Ctrl.Controller;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.ITopoUpdateListener;
 import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Topology;
+import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.TopologyService;
 import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Vertex;
 import com.github.sdnwiselab.sdnwise.flowtable.*;
 import com.github.sdnwiselab.sdnwise.packet.ResponsePacket;
@@ -59,6 +60,7 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
             // else setup a path from node to ctrl
             ArrayList<Integer> path = topology.getPathFromCtrl(id);
             paths.put(id, path);
+            System.out.println(id + " the path: " + path);
 
             // updates the routing table of other nodes
             updatePathNxtHop(path, nextHopList);
@@ -109,88 +111,61 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
 
 
     private void initSpanningTree(Topology topology){
-        updateNxhopList(topology);
-        Node node = new Node(1,0,0);
-        nodes.put(1, node);
 
-
-//        for (int i = 1; i <nextHopList.length ; i++) {
-//            HashMap<Integer, ArrayList<Integer>> list =nextHopList[i];
-//            if (list == null)
-//                continue;
-//            int sum = 0;
-//            for(ArrayList<Integer> arr : list.values()){
-//
-//                sum += arr.size();
-//            }
-//
-//            System.out.printf("required space for node %2d : %2d row\n", i, sum);
-//        }
-//
-        assignTunnel(topology);
     }
 
     boolean init = false;
 
-    private void addBranch(Topology topology){
-        for (int id : topology.graph.keySet()){
-            if(pathSets.contains(id))
-                continue;
-            pathSets.add(id);
-            ArrayList<Integer> path = topology.getPathFromCtrl(id);
-            System.out.println("id " + id + " path " + path);
-            if(path.size() == 1)
-                continue;
-            int lastNode = path.get(path.size()-2);
-            System.out.println("hello " + paths.get(lastNode));
-            int tunId = nodes.get(lastNode).addTunnel(id);
-            System.out.println(tunId);
-            nodes.put(id, new Node(id, tunId, tunId));
-            for (int key : paths.get(lastNode)) {
-                Node n = nodes.get(key);
-                if(n == null)
-                    continue;
-                System.out.println(n.id + "_" + n.routingTable);
-                if(n.id == lastNode)
-                    continue;
-                n.registerTunnel(tunId);
-                System.out.println(n.id + "_" + n.routingTable);
-                for (int k : n.routingTable.keySet()){
-                    Node child = nodes.get(k);
-                    Range range = n.routingTable.get(k);
-                    FlowTableEntry entry = createResponse(child, range.offset);
-                    ResponsePacket responsePacket = new ResponsePacket(1, new NodeAddress(1), new NodeAddress(n.id), entry, (byte) n.start );
-                    responsePacket.setTtl((byte) Stats.SDN_WISE_RL_TTL_MAX);
-                    responsePacket.setTunnelIndex((byte) n.start);
-                    int nextHop;
-                    if(n.id != 1)
-                        nextHop = paths.get(n.id).get(1);
-                    else
-                        nextHop = 1;
-                    responsePacket.setNxh("0." + nextHop);
-                    this.controller.sendResponse(responsePacket);
-                }
-
-            }
-        }
-
+    @Override
+    public void onTopoUpdate(Topology topology) {
 
     }
 
-    @Override
-    public void onTopoUpdate(Topology topology) {
-        if (!init) {
-            initSpanningTree(topology);
-            init = true;
+    public void addNewNode(int srcId){
+        ArrayList<Integer> path = TopologyService.getPath(1, srcId);
+        System.out.println("id " + srcId + " path " + path);
+        paths.put(srcId, path);
+        if(path.size() == 1){
+            nodes.put(srcId, new Node(srcId, 1, 1));
+            return;
         }
-        else{
-            addBranch(topology);
+        int lastNode = path.get(path.size()-2);
+        System.out.println("hello " + paths.get(lastNode));
+        int tunId = nodes.get(lastNode).addTunnel(srcId);
+        System.out.println(tunId);
+        nodes.put(srcId, new Node(srcId, tunId, tunId));
+        for (int key : paths.get(lastNode)) {
+            Node n = nodes.get(key);
+            if(n == null)
+                continue;
+            System.out.println(n.id + "_" + n.routingTable);
+            n.registerTunnel(tunId);
+            System.out.println(n.id + "_" + n.routingTable + "_ " + n.routingTable.keySet());
+            for (int k : n.routingTable.keySet()){
+                Node child = nodes.get(k);
+                Range range = n.routingTable.get(k);
+                FlowTableEntry entry = createResponse(child, range.offset);
+                ResponsePacket responsePacket = new ResponsePacket(1, new NodeAddress(1), new NodeAddress(n.id), entry, (byte) n.start );
+                responsePacket.setTtl((byte) Stats.SDN_WISE_RL_TTL_MAX);
+                responsePacket.setTunnelIndex((byte) n.start);
+                int nextHop;
+                if(n.id != 1)
+                    nextHop = paths.get(n.id).get(1);
+                else
+                    nextHop = 1;
+                responsePacket.setNxh("0." + nextHop);
+                System.out.println("sending response " + responsePacket);
+                this.controller.sendResponse(responsePacket);
+            }
+
         }
     }
 
     @Override
     public void onNodeAdd(Vertex node) {
-
+        int id = Integer.parseInt(node.name);
+        System.out.println("the added node is " + id);
+        addNewNode(id);
     }
 
     @Override

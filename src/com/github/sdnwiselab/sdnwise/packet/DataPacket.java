@@ -84,6 +84,7 @@ public class DataPacket extends NetworkPacket {
     @Override
     public String toString() {
         StringBuilder output = new StringBuilder();
+        output.append(" DataPacket ");
         for (byte b : getData()){
             output.append(b);
         }
