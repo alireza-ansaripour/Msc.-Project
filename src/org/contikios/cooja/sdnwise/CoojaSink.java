@@ -17,6 +17,7 @@
 package org.contikios.cooja.sdnwise;;
 
 import com.github.sdnwiselab.sdnwise.Ctrl.Controller;
+import com.github.sdnwiselab.sdnwise.flowtable.FlowTableEntry;
 import com.github.sdnwiselab.sdnwise.mote.battery.SinkBattery;
 import com.github.sdnwiselab.sdnwise.mote.core.*;
 import com.github.sdnwiselab.sdnwise.packet.NetworkPacket;
@@ -41,6 +42,15 @@ public class CoojaSink extends AbstractCoojaMote {
 
     public CoojaSink() {
         super();
+    }
+
+    @Override
+    protected void runCommand(String input) {
+
+
+        for (FlowTableEntry entry : core.getFlowTable()){
+            log(entry.toString());
+        }
     }
 
     public CoojaSink(MoteType moteType, Simulation simulation) {

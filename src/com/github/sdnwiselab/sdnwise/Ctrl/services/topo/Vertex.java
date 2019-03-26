@@ -19,6 +19,12 @@ public class Vertex implements Comparable<Vertex> {
     public Vertex(String argName) { name = argName; }
     public String toString() { return name + adjacencies; }
 
+    public boolean isAdj(Vertex v){
+        if (vertices.contains(v))
+            return true;
+        return false;
+    }
+
     @Override
     public boolean equals(Object obj) {
         Vertex v = (Vertex) obj;

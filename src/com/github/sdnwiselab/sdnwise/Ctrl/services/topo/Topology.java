@@ -113,17 +113,7 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
 
     private boolean updateFlag = false;
 
-    private boolean checkUpdate(ArrayList<Integer> list1, ArrayList<Integer> list2){
-        boolean flag = false;
-        for (int i1 : list1)
-            if (!list2.contains(i1))
-                flag = true;
 
-        for (int i2 : list2)
-            if (!list1.contains(i2))
-                flag = true;
-        return flag;
-    }
 
     private HashMap<Integer, ArrayList<Integer>> nodeStatus = new HashMap<>();
 
@@ -141,7 +131,7 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
     }
 
 
-    private void handleReponseTYP1(RequestPacket requestPacket){
+    private void addNewNode(RequestPacket requestPacket){
         DataPacket dataPacket = new DataPacket(requestPacket.getData());
         Vertex vertex = graph.get(requestPacket.getSrc().intValue());
         int neibour = dataPacket.getData()[0];
@@ -153,7 +143,8 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
         Vertex srcNode = graph.get(neibour);
         srcNode.addAdj(vertex);
         vertex.addAdj(srcNode);
-        System.out.println(graph.keySet());
+        System.out.println(graph);
+
         ctrl.notifyNodeAdd(vertex);
         ArrayList<Integer> path = TopologyService.getPath(1, address);
         int nxHop = path.get(1);
@@ -162,6 +153,7 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
         FlowTableEntry entry = new FlowTableEntry();
         int src = 0;
         int dst = 0;
+
         entry.addWindow(Window.fromString("P.SRC == " + src));
         entry.addWindow(Window.fromString("P.DST == " + dst));
         entry.addWindow(Window.fromString("P.13 == " + neibour));
@@ -169,6 +161,8 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
         entry.addAction(new SetAction("SET P.13 == " + address));
         ResponsePacket responsePacket = new ResponsePacket(1,new NodeAddress(1),new NodeAddress(address), entry, (byte) tunID);
         responsePacket.setNxh(new NodeAddress(nxHop));
+        System.out.println("broadcast " + address + "-" + tunID);
+        System.out.println("packet: " + responsePacket);
         ctrl.sendResponse(responsePacket);
     }
 
@@ -181,24 +175,39 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
 
         NetworkPacket networkPacket = new NetworkPacket(requestPacket.getData());
         int addr = requestPacket.getSrc().intValue();
-        if (addedNodes.contains(addr)) {
-            return;
-        }
-        addedNodes.add(addr);
 
-        System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-        System.out.println("the request packet is " + requestPacket);
-        if (networkPacket.getDst().intValue() == 0){
-            switch (networkPacket.getTyp()){
-                case NetworkPacket.DATA:
-                    handleReponseTYP1(requestPacket);
-                    break;
-//                case NetworkPacket.RESPONSE:
-//                    handleResponseTYP2(requestPacket);
-//                    break;
+//        System.out.println("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&");
+//        System.out.println(requestPacket);
+//        System.out.println(networkPacket);
+        if (networkPacket.getDst().intValue() == 0 && networkPacket.getTyp() == NetworkPacket.DATA){
+            if(!graph.keySet().contains(addr)){
+                System.out.println("new Node " + addr);
+
+                addNewNode(requestPacket);
+            }else{
+                checkUpdate(requestPacket);
             }
         }
 
+    }
+
+    private void checkUpdate(RequestPacket requestPacket) {
+        DataPacket dataPacket = new DataPacket(requestPacket.getData());
+        int firstNodeAddr = requestPacket.getSrc().intValue();
+        int secondNodeAddr = dataPacket.getData()[0];
+        if (!addedNodes.contains(secondNodeAddr)){
+            addedNodes.add(secondNodeAddr);
+        }
+        Vertex firstNode = graph.get(firstNodeAddr);
+        Vertex secondeNode = graph.get(secondNodeAddr);
+        if(firstNode.isAdj(secondeNode) && secondeNode.isAdj(firstNode))
+            return;
+        if (!firstNode.isAdj(secondeNode)){
+            firstNode.addAdj(secondeNode);
+        }
+        if(secondeNode.isAdj(firstNode)){
+            secondeNode.addAdj(firstNode);
+        }
     }
 
     boolean flag = false;

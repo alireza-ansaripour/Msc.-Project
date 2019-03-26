@@ -16,12 +16,15 @@
  */
 package org.contikios.cooja.sdnwise;;
 
+import com.github.sdnwiselab.sdnwise.flowtable.FlowTableEntry;
 import com.github.sdnwiselab.sdnwise.mote.battery.Battery;
 import com.github.sdnwiselab.sdnwise.mote.core.*;
 import com.github.sdnwiselab.sdnwise.packet.DataPacket;
 import com.github.sdnwiselab.sdnwise.packet.NetworkPacket;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
 import org.contikios.cooja.*;
+
+import java.util.Map;
 
 /**
  * @author Sebastiano Milardo
@@ -54,11 +57,14 @@ public class CoojaMote extends AbstractCoojaMote {
 
     @Override
     protected void runCommand(String input) {
-        String[] parts = input.split(" ");
-        byte[] data = parts[1].getBytes();
-        String dst = parts[0];
-        DataPacket dataPacket = new DataPacket(1, new NodeAddress(getID()), new NodeAddress(dst), data);
-        core.send(dataPacket);
+//        String[] parts = input.split(" ");
+//        byte[] data = parts[1].getBytes();
+//        String dst = parts[0];
+//        DataPacket dataPacket = new DataPacket(1, new NodeAddress(getID()), new NodeAddress(dst), data);
+//        core.send(dataPacket);
+        for (FlowTableEntry entry : core.getFlowTable()){
+            log(entry.toString());
+        }
 
     }
 }

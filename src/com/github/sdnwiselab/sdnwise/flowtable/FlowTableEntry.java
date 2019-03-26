@@ -36,6 +36,9 @@ public final class FlowTableEntry implements FlowTableInterface {
      * be sadisfied in order to execute the actions.
      */
     private final List<Window> windows = new LinkedList<>();
+    private int id;
+
+
     /**
      * Contains the list of actions of the FlowTableEntry. The actions are
      * executed when all the windows are satisfied.
@@ -271,6 +274,15 @@ public final class FlowTableEntry implements FlowTableInterface {
             return false;
         }
         return Objects.deepEquals(actions, other.actions);
+    }
+
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
 }

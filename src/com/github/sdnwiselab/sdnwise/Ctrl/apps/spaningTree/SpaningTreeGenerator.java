@@ -1,6 +1,7 @@
 package com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree;
 
 import com.github.sdnwiselab.sdnwise.Ctrl.Controller;
+import com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree.ruleManager.FlowTableManager;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
 import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.ITopoUpdateListener;
 import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.Topology;
@@ -18,7 +19,16 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
     HashMap<Integer, ArrayList<Integer>>[] nextHopList = new HashMap[100];
     HashMap<Integer, Node> nodes = new HashMap<>();
     private HashMap<Integer, ArrayList<Integer>>paths = new HashMap<>();
+    private HashMap<Integer, Byte> tunnels = new HashMap<>();
     Controller controller;
+
+    public HashMap<Integer, ArrayList<Integer>> getPaths() {
+        return paths;
+    }
+
+    public HashMap<Integer, Byte> getTunnels() {
+        return tunnels;
+    }
 
     @Override
     public void startUp(Controller context) {
@@ -73,46 +83,7 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
     }
 
 
-    private void assignTunnel(Topology topology){
-        ArrayDeque<Node> nodes = new ArrayDeque<>();
-        Node first = new Node(1, 1, 1);
 
-        nodes.push(first);
-
-        while (nodes.size() != 0){
-            Node node = nodes.removeFirst();
-            this.nodes.put(node.id, node);
-            System.out.println("Node #" + node.id + "-" + node.start);
-            HashMap<Integer, ArrayList<Integer>> data = nextHopList[node.id];
-            if(data == null)
-                continue;
-            int pivot = node.start  +1;
-            for(int key: data.keySet()){
-                Node child = new Node(key, pivot, pivot + data.get(key).size()-1);
-                node.addRange(key, new Range(child.start, child.end));
-                nodes.add(child);
-                System.out.println("    " + key + ":" + pivot + "-" + (pivot + data.get(key).size()-1));
-                pivot += data.get(key).size();
-                if(node.id == 1)
-                    continue;
-
-                // create packet for node
-                FlowTableEntry entry = createResponse(child);
-                ResponsePacket responsePacket = new ResponsePacket(1, new NodeAddress(1), new NodeAddress(node.id), entry, (byte) node.start );
-                responsePacket.setTunnelIndex((byte) node.start);
-                int nextHop = topology.getPathFromCtrl(node.id).get(1);
-                responsePacket.setNxh("0." + nextHop);
-
-                this.controller.sendResponse(responsePacket);
-            }
-        }
-    }
-
-
-
-    private void initSpanningTree(Topology topology){
-
-    }
 
     boolean init = false;
 
@@ -123,42 +94,54 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
 
     public void addNewNode(int srcId){
         ArrayList<Integer> path = TopologyService.getPath(1, srcId);
-        System.out.println("id " + srcId + " path " + path);
         paths.put(srcId, path);
         if(path.size() == 1){
             nodes.put(srcId, new Node(srcId, 1, 1));
             return;
         }
         int lastNode = path.get(path.size()-2);
-        System.out.println("hello " + paths.get(lastNode));
         int tunId = nodes.get(lastNode).addTunnel(srcId);
-        System.out.println(tunId);
+        System.out.println("last node " + lastNode + "-" + tunId);
         nodes.put(srcId, new Node(srcId, tunId, tunId));
-        for (int key : paths.get(lastNode)) {
+        path = new ArrayList<>();
+        for(int i = paths.get(lastNode).size()-1;i>= 0; i--){
+            path.add(paths.get(lastNode).get(i));
+        }
+        Node previous = null;
+        for (int key : path) {
             Node n = nodes.get(key);
             if(n == null)
                 continue;
             System.out.println(n.id + "_" + n.routingTable);
-            n.registerTunnel(tunId);
-            System.out.println(n.id + "_" + n.routingTable + "_ " + n.routingTable.keySet());
+
+            if(n.id != lastNode)
+                tunId = n.registerTunnel(previous, tunId);
+            previous = n;
+            System.out.println(n.id + "_" + n.routingTable);
             for (int k : n.routingTable.keySet()){
                 Node child = nodes.get(k);
                 Range range = n.routingTable.get(k);
-                FlowTableEntry entry = createResponse(child, range.offset);
-                ResponsePacket responsePacket = new ResponsePacket(1, new NodeAddress(1), new NodeAddress(n.id), entry, (byte) n.start );
-                responsePacket.setTtl((byte) Stats.SDN_WISE_RL_TTL_MAX);
-                responsePacket.setTunnelIndex((byte) n.start);
-                int nextHop;
-                if(n.id != 1)
-                    nextHop = paths.get(n.id).get(1);
-                else
-                    nextHop = 1;
-                responsePacket.setNxh("0." + nextHop);
-                System.out.println("sending response " + responsePacket);
-                this.controller.sendResponse(responsePacket);
+
+                FlowTableEntry entry = createResponse(k, range);
+                int ruleID = -1;
+                if(n.ruleMap.get(k) == null){
+                    ruleID = FlowTableManager.addRule(n.id, entry);
+                }else {
+                    FlowTableEntry removeEntry = FlowTableManager.getRule(n.id, n.ruleMap.get(k));
+                    ruleID = FlowTableManager.replaceRule(n.id, entry, removeEntry);
+                }
+                n.ruleMap.put(k, ruleID);
             }
 
         }
+
+        for (int node: tunnels.keySet()) {
+            if (tunnels.get(node) >= tunId) {
+                tunnels.put(node,(byte)(tunnels.get(node) + 1));
+            }
+        }
+        tunnels.put(srcId, (byte) tunId);
+        System.out.println(tunnels);
     }
 
     @Override
@@ -174,17 +157,15 @@ public class SpaningTreeGenerator implements IDummyCtrlModule,ITopoUpdateListene
     }
 
 
-    private FlowTableEntry createResponse(Node node){
-        return createResponse(node, 0);
-    }
 
-    private FlowTableEntry createResponse(Node node, int offset){
+
+    private FlowTableEntry createResponse(int nodeID, Range range){
         FlowTableEntry entry = new FlowTableEntry();
         entry.addWindow(Window.fromString("P.TYP == 4"));
-        entry.addWindow(Window.fromString("P.13 >= " + node.start));
-        entry.addWindow(Window.fromString("P.13 <= " + node.end));
-        entry.addAction(new ForwardUnicastAction(new NodeAddress(node.id)));
-        entry.addAction(new SetAction("SET P.13 = P.13 - " + offset));
+        entry.addWindow(Window.fromString("P.13 >= " + range.start));
+        entry.addWindow(Window.fromString("P.13 <= " + range.end));
+        entry.addAction(new ForwardUnicastAction(new NodeAddress(nodeID)));
+        entry.addAction(new SetAction("SET P.13 = P.13 - " + range.offset));
         entry.getStats().setPermanent();
         return entry;
     }

@@ -19,6 +19,8 @@ import java.util.concurrent.Semaphore;
 public class Controller {
     private CoojaSink sink;
     private ArrayList<IPacketListener> packetListeners = new ArrayList<>();
+
+    private static Controller instance = null;
     private ArrayList<ITopoUpdateListener> topoUpdateListeners = new ArrayList<>();
     private Class [] modules = new Class[]{
             Topology.class,
@@ -27,6 +29,7 @@ public class Controller {
     };
 
     public Controller() {
+        instance = this;
         for (Class c: modules) {
             try {
                 IDummyCtrlModule obj = (IDummyCtrlModule) c.newInstance();
@@ -97,9 +100,14 @@ public class Controller {
     private static Controller controller;
 
     public void sendResponse(NetworkPacket networkPacket){
-        System.out.println("sending packet" + networkPacket);
+
         this.sink.radioTX(networkPacket);
     }
+
+    public static Controller getController(){
+        return instance;
+    }
+
     public static Controller getInstance(CoojaSink sink){
         if(controller == null){
             controller = new Controller();

@@ -791,10 +791,11 @@ public abstract class AbstractCore {
 
 
         int i = searchRule(rule);
-        if (i != -1) {
-            flowTable.set(i, rule);
-            log(Level.INFO, "Replacing rule " + rule
+
+        if (i != -1 && rule.getActions().size() == 0) {
+            log(Level.INFO, "Removing rule " + flowTable.get(i)
                     + " at position " + i);
+            flowTable.remove(i);
         } else {
             rule.getStats().setPermanent();
             flowTable.add(rule);
@@ -1014,7 +1015,6 @@ public abstract class AbstractCore {
      */
     protected final void radioTX(final NetworkPacket np) {
         np.decrementTtl();
-        log(Level.INFO,"sending packet" + np.toString());
         txQueue.add(np);
     }
 
