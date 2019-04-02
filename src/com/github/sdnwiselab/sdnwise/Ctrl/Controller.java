@@ -15,10 +15,19 @@ import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Semaphore;
 
+import org.contikios.cooja.*;
+import org.contikios.cooja.interfaces.*;
+import org.contikios.cooja.motes.AbstractApplicationMote;
+
+
 
 public class Controller {
     private CoojaSink sink;
     private ArrayList<IPacketListener> packetListeners = new ArrayList<>();
+
+    public CoojaSink getSink() {
+        return sink;
+    }
 
     private static Controller instance = null;
     private ArrayList<ITopoUpdateListener> topoUpdateListeners = new ArrayList<>();
@@ -42,6 +51,11 @@ public class Controller {
 
     public final ArrayBlockingQueue<NetworkPacket> txControllerQueue
             = new ArrayBlockingQueue<>(1000);
+
+
+    public Simulation getSimulation(){
+        return sink.getSim();
+    }
 
     private class Listener implements Runnable{
         @Override

@@ -131,6 +131,7 @@ public abstract class AbstractMote implements Runnable {
      * @param np the NetworkPacket to be sent
      */
     public final void radioTX(final NetworkPacket np) {
+        System.out.println("hsdjfsldjflasdf");
 
         if (np.isSdnWise()) {
             sentBytes += np.getLen();

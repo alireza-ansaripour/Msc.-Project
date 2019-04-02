@@ -21,6 +21,8 @@ public class SpanningTreeService {
                 toSend = tunnel-range.offset;
             }
         }
+        if (toSend == 0)
+            toSend = tunnel;
         return toSend;
     }
 

@@ -27,10 +27,11 @@ public class Node {
     }
 
     public int registerTunnel(Node previous, int id){
-        System.out.println("reg for " + id);
+        System.out.println("reg for node " + previous + " - " + id);
         if (id > end){
             end = id;
         }
+
         Range range = routingTable.get(previous.id);
         if ((id + range.offset) > range.end){
             range.end = id + range.offset;

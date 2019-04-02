@@ -10,6 +10,10 @@ import com.github.sdnwiselab.sdnwise.packet.*;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
 
 import java.util.*;
+import org.contikios.cooja.*;
+import org.contikios.cooja.interfaces.*;
+import org.contikios.cooja.motes.AbstractApplicationMote;
+
 
 public class Topology implements IPacketListener, IDummyCtrlModule {
     public HashMap<Integer, Vertex> graph = new HashMap<>();
@@ -105,6 +109,8 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
             case NetworkPacket.REQUEST:
                 handleRequestPacket((RequestPacket) packet);
                 break;
+
+
         }
     }
 
@@ -157,8 +163,8 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
         entry.addWindow(Window.fromString("P.SRC == " + src));
         entry.addWindow(Window.fromString("P.DST == " + dst));
         entry.addWindow(Window.fromString("P.13 == " + neibour));
-        entry.addAction(new ForwardBroadcastAction());
         entry.addAction(new SetAction("SET P.13 == " + address));
+        entry.addAction(new ForwardBroadcastAction());
         ResponsePacket responsePacket = new ResponsePacket(1,new NodeAddress(1),new NodeAddress(address), entry, (byte) tunID);
         responsePacket.setNxh(new NodeAddress(nxHop));
         System.out.println("broadcast " + address + "-" + tunID);
@@ -175,10 +181,6 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
 
         NetworkPacket networkPacket = new NetworkPacket(requestPacket.getData());
         int addr = requestPacket.getSrc().intValue();
-
-//        System.out.println("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&");
-//        System.out.println(requestPacket);
-//        System.out.println(networkPacket);
         if (networkPacket.getDst().intValue() == 0 && networkPacket.getTyp() == NetworkPacket.DATA){
             if(!graph.keySet().contains(addr)){
                 System.out.println("new Node " + addr);
@@ -211,25 +213,49 @@ public class Topology implements IPacketListener, IDummyCtrlModule {
     }
 
     boolean flag = false;
-
+    Simulation simulation = null;
+    HashMap <Integer, ArrayList<Integer>> topo = new HashMap<>();
     private void handleReportPacket(ReportPacket reportPacket){
         NodeAddress src = reportPacket.getSrc();
-        int srcID = src.intValue();
-        if (!flag) {
-            Vertex vertex = new Vertex(Integer.toString(srcID));
-            graph.put(srcID, vertex);
-            for (NodeAddress address: reportPacket.getNeighbors().keySet()){
-                int addr = address.intValue();
-                if(graph.containsKey(addr)){
-                    vertex.addAdj(graph.get(addr));
-                }
-                DataPacket dataPacket = new DataPacket(1, new NodeAddress(0), new NodeAddress(0), new byte[]{1});
-                dataPacket.setNxh(address);
-                ctrl.sendResponse(dataPacket);
-            }
-            ctrl.notifyNodeAdd(vertex);
-        }
-        flag = true;
+        ArrayList<Integer> nodes = new ArrayList<>();
+        for (NodeAddress address: reportPacket.getNeighbors().keySet())
+            nodes.add(address.intValue());
+        topo.put(src.intValue(), nodes);
+        System.out.println(topo);
+//        int srcID = src.intValue();
+//        if (!flag) {
+//            Vertex vertex = new Vertex(Integer.toString(srcID));
+//            graph.put(srcID, vertex);
+//            simulation = ctrl.getSimulation();
+//            for (NodeAddress address: reportPacket.getNeighbors().keySet()){
+//                int addr = address.intValue();
+//                if(graph.containsKey(addr)){
+//                    vertex.addAdj(graph.get(addr));
+//                }
+//            }
+//
+//            DataPacket dataPacket = new DataPacket(1, new NodeAddress(0), new NodeAddress(0), new byte[]{1});
+//            dataPacket.setNxh(NodeAddress.BROADCAST_ADDR);
+//            ctrl.sendResponse(dataPacket);
+//            sendPacket(dataPacket);
+//
+//            ctrl.notifyNodeAdd(vertex);
+//        }
+//        flag = true;
+    }
+
+    private void sendPacket(NetworkPacket packet){
+        System.out.println("sending ");
+        simulation.scheduleEvent(
+                new MoteTimeEvent((AbstractApplicationMote)ctrl.getSink(), 0) {
+                    @Override
+                    public void execute(long t) {
+                        ctrl.sendResponse(packet);
+                        sendPacket(packet);
+                    }
+                }, simulation.getSimulationTime() + (3000) * Simulation.MILLISECOND
+        );
+
     }
 
     private Controller ctrl;

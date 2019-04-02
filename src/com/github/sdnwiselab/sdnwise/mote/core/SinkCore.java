@@ -77,7 +77,7 @@ public class SinkCore extends AbstractCore {
             final String mac,
             final long port,
             final InetSocketAddress ctrl) {
-        super(net, address, battery);
+        super(net, address, battery, null);
         this.switchDPid = dPid;
         this.switchMac = mac;
         this.switchPort = port;

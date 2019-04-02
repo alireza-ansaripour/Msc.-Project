@@ -44,9 +44,10 @@ public class CoojaSink extends AbstractCoojaMote {
         super();
     }
 
+
+
     @Override
     protected void runCommand(String input) {
-
 
         for (FlowTableEntry entry : core.getFlowTable()){
             log(entry.toString());

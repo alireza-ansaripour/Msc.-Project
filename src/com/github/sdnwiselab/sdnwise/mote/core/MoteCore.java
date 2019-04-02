@@ -33,6 +33,8 @@ import static com.github.sdnwiselab.sdnwise.packet.NetworkPacket.DFLT_TTL_MAX;
 import static com.github.sdnwiselab.sdnwise.packet.NetworkPacket.DST_INDEX;
 import com.github.sdnwiselab.sdnwise.util.Neighbor;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
+import org.contikios.cooja.sdnwise.OrderManager;
+
 import java.nio.charset.Charset;
 import java.util.logging.*;
 
@@ -52,8 +54,8 @@ public class MoteCore extends AbstractCore {
      * @param battery the battery of the node
      */
     public MoteCore(final byte net, final NodeAddress na,
-            final Dischargeable battery) {
-        super(net, na, battery);
+                    final Dischargeable battery) {
+        super(net, na, battery, null);
         setActive(true);
     }
 
@@ -108,6 +110,7 @@ public class MoteCore extends AbstractCore {
                 setSinkDistance(bp.getDistance() + 1);
                 setSinkRssi(rssi);
                 log(Level.INFO, "sink addr updated" + bp.getSrc());
+                System.out.println(getMyAddress() + " sink addr updated for node " + bp.getSrc());
                 radioTX(prepareBeacon());
             } else if ((bp.getDistance() + 1) == getSinkDistance()
                     && getNextHopVsSink().equals(bp.getSrc())) {

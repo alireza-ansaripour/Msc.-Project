@@ -17,7 +17,6 @@
 package com.github.sdnwiselab.sdnwise.mote.core;
 
 import com.github.sdnwiselab.sdnwise.flowtable.AbstractAction;
-import static com.github.sdnwiselab.sdnwise.flowtable.AbstractAction.Action.FORWARD_U;
 import com.github.sdnwiselab.sdnwise.flowtable.AbstractForwardAction;
 import com.github.sdnwiselab.sdnwise.flowtable.FlowTableEntry;
 import static com.github.sdnwiselab.sdnwise.flowtable.FlowTableInterface.CONST;
@@ -35,7 +34,6 @@ import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.MUL;
 import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.OR;
 import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.SUB;
 import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.XOR;
-import com.github.sdnwiselab.sdnwise.flowtable.Stats;
 import static com.github.sdnwiselab.sdnwise.flowtable.Stats.ENTRY_TTL_PERMANENT;
 import com.github.sdnwiselab.sdnwise.flowtable.Window;
 import static com.github.sdnwiselab.sdnwise.flowtable.Window.EQUAL;
@@ -60,6 +58,7 @@ import com.github.sdnwiselab.sdnwise.packet.*;
 import com.github.sdnwiselab.sdnwise.packet.ConfigPacket.ConfigProperty;
 import com.github.sdnwiselab.sdnwise.util.Neighbor;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
+import org.contikios.cooja.sdnwise.OrderManager;
 
 import static com.github.sdnwiselab.sdnwise.packet.NetworkPacket.*;
 import static com.github.sdnwiselab.sdnwise.util.Utils.mergeBytes;
@@ -80,6 +79,7 @@ public abstract class AbstractCore {
      * Lenght of the function subheader.
      */
     private static final int FUNCTION_HEADER = 3;
+    private OrderManager manager;
     /**
      * Max RSSI value.
      */
@@ -205,10 +205,11 @@ public abstract class AbstractCore {
      * @param bat models the battery of the node
      */
     AbstractCore(final byte net, final NodeAddress address,
-            final Dischargeable bat) {
+            final Dischargeable bat, OrderManager m)  {
         myAddress = address;
         myNet = net;
         battery = bat;
+        manager = OrderManager.getManager(address.intValue());
     }
 
     /**
@@ -264,8 +265,8 @@ public abstract class AbstractCore {
      * @return a NetworkPacket
      * @throws InterruptedException the method waits for a new packet
      */
-    public final NetworkPacket getNetworkPacketToBeSend() throws
-            InterruptedException {
+    public final NetworkPacket getNetworkPacketToBeSend() throws InterruptedException {
+
         return txQueue.take();
     }
 
@@ -277,25 +278,22 @@ public abstract class AbstractCore {
      * @param rssi the RSSI of the NetworkPacket
      */
     public final void rxRadioPacket(final NetworkPacket np, final int rssi) {
-
         if (np.getDst().isBroadcast()
                 || np.getNxh().isBroadcast()
                 || np.getNxh().equals(myAddress)
                 || acceptedId.contains(np.getNxh())
                 || !np.isSdnWise()) {
-            if(np.getTyp() != ACK)
-                radioTX(prepareAck(np));
+            log(Level.INFO, "fuck off got this fucked thing " + np);
+            manager.packetReceived(np);
 
-            rxHandler(np, rssi);
         }
     }
 
 
-    private AckPacket prepareAck(NetworkPacket packet){
-        AckPacket packet1 =  new AckPacket(myNet,myAddress,packet.getCUR());
-        packet1.setMSGIndex(packet.getMsgIndex());
-        packet1.setNxh(packet.getCUR());
-        return packet1;
+
+
+    public void setManager(OrderManager manager) {
+        this.manager = manager;
     }
 
     /**
@@ -316,6 +314,7 @@ public abstract class AbstractCore {
      * This method is called every second, and it is used to decide when to send
      * a Beacon, a Report, and to age the entries of the FlowTable.
      */
+    boolean flag2 = true;
     public final void timer() {
         if (myAddress.intValue() != 1) {
             if (startDelay >= 0) {
@@ -330,13 +329,14 @@ public abstract class AbstractCore {
             if ((cntReport) >= cntReportMax) {
                 cntReport = 0;
                 cntBeacon = 0;
-
                 controllerTX(prepareReport());
             }
 
             if ((cntBeacon) >= cntBeaconMax) {
                 cntBeacon = 0;
+
                 radioTX(prepareBeacon());
+
             }
 
 
@@ -347,7 +347,7 @@ public abstract class AbstractCore {
             }
         }
     }
-
+    private boolean flag = true;
     /**
      * Compares two integers.
      *
@@ -792,10 +792,12 @@ public abstract class AbstractCore {
 
         int i = searchRule(rule);
 
-        if (i != -1 && rule.getActions().size() == 0) {
-            log(Level.INFO, "Removing rule " + flowTable.get(i)
-                    + " at position " + i);
-            flowTable.remove(i);
+        if ( rule.getActions().size() == 0) {
+            if (i != -1) {
+                log(Level.INFO, "Removing rule " + flowTable.get(i)
+                        + " at position " + i);
+                flowTable.remove(i);
+            }
         } else {
             rule.getStats().setPermanent();
             flowTable.add(rule);
@@ -1038,9 +1040,9 @@ public abstract class AbstractCore {
 
             i++;
             if (matchRule(fte, packet)) {
-                log(Level.INFO, "Matched Rule #" + i + " " + fte.toString());
+                log(Level.INFO, "Matched Rule ##" + i + " " + fte.toString());
                 matched = true;
-                fte.getActions().stream().forEach((a) -> {
+                fte.getActions().forEach((a) -> {
                     runAction(a, packet);
                 });
                 fte.getStats().increaseCounter();
@@ -1096,7 +1098,7 @@ public abstract class AbstractCore {
      * @param packet the incoming NetworkPacket
      * @param rssi the rssi of the incoming NetworkPacket
      */
-    protected final void rxHandler(final NetworkPacket packet, final int rssi) {
+    public final void rxHandler(final NetworkPacket packet, final int rssi) {
         switch (packet.getTyp()) {
             case DATA:
                 rxData(new DataPacket(packet));
@@ -1136,13 +1138,11 @@ public abstract class AbstractCore {
     }
 
     public HashMap<Integer, NetworkPacket>sendPackets = new HashMap<>();
+
     protected void rxAck(NetworkPacket packet){
+        int index = packet.getMsgIndex();
 
-
-        NetworkPacket packet1 = getPacket((int) packet.getMsgIndex());
-        if (packet1 == null)
-            return;
-        removeSendPacket(packet);
+        OrderManager.getManager(myAddress.intValue()).AckPacket(packet.getCUR().intValue(),(byte) index);
     }
 
     /**
@@ -1222,11 +1222,11 @@ public abstract class AbstractCore {
             for(NetworkPacket np : buffer) {
                 log(Level.INFO, "packet: " + np.getTyp() + ", " + np.getSrc()+ " res: " + matchRule(packet.getRule(), np));
                 if (matchRule(packet.getRule(), np)) {
-                    log(Level.INFO, "Matched Rule new incoming packet" + buffer.size());
-                    packet.getRule().getActions().forEach((a) -> {
+                    log(Level.INFO, "Matched Rule new incoming packet" + packet.getRule().getActions());
+                    packet.getRule().getActions().stream().forEach((a) -> {
+                        log(Level.INFO, "action done " +np);
                         runAction(a, np);
                     });
-                    log(Level.INFO, "action done");
                     packet.getRule().getStats().increaseCounter();
                 }
             }

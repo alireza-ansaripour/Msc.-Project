@@ -44,6 +44,7 @@ import org.contikios.cooja.*;
 import org.contikios.cooja.interfaces.*;
 import org.contikios.cooja.motes.AbstractApplicationMote;
 
+
 /**
  * Example SdnWise mote.
  *
@@ -53,6 +54,7 @@ import org.contikios.cooja.motes.AbstractApplicationMote;
  */
 public abstract class AbstractCoojaMote extends AbstractApplicationMote {
 
+    private static final int MAX_ATTEMPT = 3;
     // Statistics
     private int sentBytes;
     private int receivedBytes;
@@ -63,6 +65,7 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
 
     // Cooja
     private Simulation simulation;
+    protected OrderManager manager;
     private Random random;
     private ApplicationRadio radio;
     private ApplicationLED leds;
@@ -70,6 +73,11 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
     private final Level defaultLogLevel = Level.FINEST;
     private Logger measureLogger;
     protected com.github.sdnwiselab.sdnwise.mote.battery.Battery battery;
+
+
+    public Simulation getSim() {
+        return simulation;
+    }
 
     AbstractCore core;
 
@@ -98,6 +106,11 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
                     sentDataBytes, receivedDataBytes});
     }
 
+
+    public ApplicationRadio getRadio() {
+        return radio;
+    }
+
     @Override
     public void execute(long time) {
         if (radio == null) {
@@ -106,9 +119,29 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
             random = simulation.getRandomGenerator();
             radio = (ApplicationRadio) getInterfaces().getRadio();
             leds = (ApplicationLED) getInterfaces().getLED();
-            btn = (Button) getInterfaces().getButton();
-
+            manager = new OrderManager(simulation, this);
             init();
+            manager.setOnRecvAction(new SendAction() {
+                @Override
+                public void run(NetworkPacket networkPacket) {
+                    core.rxHandler(networkPacket, (int) (255 + radio.getCurrentSignalStrength()));
+                }
+            });
+            AbstractApplicationMote mote = this;
+            manager.runSend(new SendAction() {
+                private void trySend(NetworkPacket packet, int attempt, long txTime){
+                    logI("trying with attempt " + attempt+ "-" + radio.isTransmitting() +"_"+ radio.isReceiving() +"_"+ radio.isInterfered() +"_"+  (doneTx> txTime));
+
+                    logI("sending finally " + packet);
+                    RadioPacket pk = new COOJARadioPacket(packet.toByteArray());
+                    radio.startTransmittingPacket(pk,10 * Simulation.MILLISECOND);
+                }
+
+                @Override
+                public void run(NetworkPacket packet) {
+                    trySend(packet,1, simulation.getSimulationTimeMillis());
+                }
+            });
             measureLogger = initLogger(Level.FINEST, core.getMyAddress()
                     + ".log", new MoteFormatter());
         }
@@ -135,41 +168,26 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
                 + (1000 + delay) * Simulation.MILLISECOND
         );
     }
-    private void showPacketData(NetworkPacket np){
-    	String data;
-        data  = "packet type:" + np.getTyp()+";";
-        data += "packet size:" + np.getLen()+";";
-        data += "packet src:"  + np.getSrc()+";";
-        data += "packet dst:"  + np.getDst()+";";
-        data += "packet nxtH:" + np.getNxh()+";";
-        data += "packet ttl:"  + np.getTtl();
-        log(data);
-    }
 
     @Override
     public void receivedPacket(RadioPacket p) {
 	    String a = new String(p.getPacketData());
-        if (battery.getByteLevel() > 0) {
-
-            byte[] networkPacket;
-
-            if (NetworkPacket.isSdnWise(p.getPacketData())) {
-                networkPacket = Arrays.copyOfRange(p.getPacketData(), 0, p.getPacketData().length);
-            } else {
-                networkPacket = Arrays.copyOfRange(p.getPacketData(), 15, p.getPacketData().length - 2);
-            }
-
-            NetworkPacket np = new NetworkPacket(networkPacket);
-            if (np.isSdnWise()) {
-                receivedBytes += np.getLen();
-                if (DATA == np.getTyp()) {
-                    receivedDataBytes += np.getPayloadSize();
-                }
-            }
-//            battery.receiveRadio(p.getPacketData().length);
-
-            core.rxRadioPacket(np, (int) (255 + radio.getCurrentSignalStrength()));
+        byte[] networkPacket;
+        if (NetworkPacket.isSdnWise(p.getPacketData())) {
+            networkPacket = Arrays.copyOfRange(p.getPacketData(), 0, p.getPacketData().length);
+        } else {
+            networkPacket = Arrays.copyOfRange(p.getPacketData(), 15, p.getPacketData().length - 2);
         }
+        NetworkPacket np = new NetworkPacket(networkPacket);
+        if (np.isSdnWise()) {
+            receivedBytes += np.getLen();
+            if (DATA == np.getTyp()) {
+                receivedDataBytes += np.getPayloadSize();
+            }
+        }
+
+        core.rxRadioPacket(np, (int) (255 + radio.getCurrentSignalStrength()));
+
     }
 
     @Override
@@ -199,71 +217,12 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
     }
 
 
-    private void checkSend(NetworkPacket networkPacket){
-        int index = networkPacket.getMsgIndex();
-        NetworkPacket toSend = core.getPacket(index);
-        if (toSend != null && toSend.equals(networkPacket) ) {
-            core.removeSendPacket(networkPacket);
-            radioTX(networkPacket);
-
-        }
+    public void logI(String msg){
+        core.log(Level.INFO, msg);
     }
 
     public void radioTX(final NetworkPacket np) {
-        if (battery.getByteLevel() > 0) {
-            long actualTime = simulation.getSimulationTimeMillis();
-
-
-            if (radio.isTransmitting() || radio.isReceiving() || radio.isInterfered()|| doneTx > actualTime) {
-                lastTx = Math.max(lastTx, simulation.getSimulationTime()) + 1 * Simulation.MILLISECOND;
-                simulation.scheduleEvent(new MoteTimeEvent(this, 0) {
-                    @Override
-                    public void execute(long t) {
-                        radioTX(np);
-                    }
-                },
-                        lastTx
-                );
-
-            } else {
-                // send the NetworkPacket over the radio
-
-
-                if(np.getTyp() != ACK){
-                    if (np.isSdnWise()) {
-                        sentBytes += np.getLen();
-                        if (DATA == np.getTyp()) {
-                            sentDataBytes += np.getPayloadSize();
-                        }
-                    }
-                    Random random = new Random();
-                    random.nextInt(100);
-                    // simulates the battery consumption
-                    int index = random.nextInt(100);
-//                    if(np.getMsgIndex() == 0)
-                    np.setMSGIndex((byte)index);
-
-                    if(np.getTyp() != BEACON) {
-                        core.addSendPackets(np);
-                        simulation.scheduleEvent(
-                                new MoteTimeEvent(this, 0) {
-                                    @Override
-                                    public void execute(long t) {
-                                        checkSend(np);
-                                    }
-                                },
-                                simulation.getSimulationTime() + 1000 * Simulation.MILLISECOND
-                        );
-                    }
-                }
-                doneTx = actualTime + 1 ;
-                np.setCUR(core.getMyAddress().getArray()[0], core.getMyAddress().getArray()[1]);
-
-                RadioPacket pk = new COOJARadioPacket(np.toByteArray());
-                //battery.transmitRadio(pk.getPacketData().length);
-                radio.startTransmittingPacket(pk,1/2 * simulation.MILLISECOND);
-            }
-        }
+        manager.addPacketToSend(np);
     }
 
     void startThreads() {
