@@ -1,9 +1,9 @@
-package com.github.sdnwiselab.sdnwise.Ctrl.SampleApp;
-import com.github.sdnwiselab.sdnwise.Ctrl.Controller;
-import com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree.SpanningTreeService;
-import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IDummyCtrlModule;
-import com.github.sdnwiselab.sdnwise.Ctrl.interfaces.IPacketListener;
-import com.github.sdnwiselab.sdnwise.Ctrl.services.topo.TopologyService;
+package Ctrl.SampleApp;
+import Ctrl.Controller;
+import Ctrl.apps.spaningTree.SpanningTreeService;
+import Ctrl.interfaces.IDummyCtrlModule;
+import Ctrl.interfaces.IPacketListener;
+import Ctrl.services.topo.TopologyService;
 import com.github.sdnwiselab.sdnwise.flowtable.FlowTableEntry;
 import com.github.sdnwiselab.sdnwise.flowtable.ForwardUnicastAction;
 import com.github.sdnwiselab.sdnwise.flowtable.Window;
@@ -28,9 +28,9 @@ public class Router implements IDummyCtrlModule, IPacketListener {
 
         try{
             RequestPacket rp = (RequestPacket) packet;
-            System.out.println("The request packet: " + rp);
+
             NetworkPacket p = new NetworkPacket(rp.getData());
-            System.out.println("The content packet " + p);
+
             int src = p.getSrc().intValue();
             int dst = p.getDst().intValue();
             System.out.println("rout from " + src + " to " + dst + ":" + p.toString());
@@ -52,7 +52,7 @@ public class Router implements IDummyCtrlModule, IPacketListener {
 
             int nextHop = TopologyService.getPath(rp.getDst().intValue(), rp.getSrc().intValue()).get(1);
             responsePacket.setNxh(new NodeAddress(nextHop));
-            System.out.println("sending response: "+ responsePacket);
+
             ctrl.sendResponse(responsePacket);
 
 

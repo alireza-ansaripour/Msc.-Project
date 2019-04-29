@@ -68,7 +68,9 @@ public abstract class AbstractAction implements FlowTableInterface {
         /**
          * Subtracts a byte of a packet
          */
-        SUB(8);
+        SUB(8),
+
+        REPORT(9);
 
         /**
          * A byte representing the action.

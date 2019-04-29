@@ -35,8 +35,8 @@ public class RequestPacket extends NetworkPacket {
      */
     private static final byte ID_INDEX = 0, PART_INDEX = 1,
             REQUEST_HEADER_SIZE = 3,
-            REQUEST_PAYLOAD_SIZE = NetworkPacket.MAX_PACKET_LENGTH
-            - (DFLT_HDR_LEN + REQUEST_HEADER_SIZE), TOTAL_INDEX = 2;
+            REQUEST_PAYLOAD_SIZE =(byte) (NetworkPacket.MAX_PACKET_LENGTH - (DFLT_HDR_LEN + REQUEST_HEADER_SIZE)),
+            TOTAL_INDEX = 2;
 
     /**
      * Creates an array of request packets from a byte array.

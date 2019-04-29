@@ -1,4 +1,4 @@
-package com.github.sdnwiselab.sdnwise.Ctrl.apps.spaningTree;
+package Ctrl.apps.spaningTree;
 
 import java.util.HashMap;
 
@@ -6,6 +6,7 @@ public class Node {
     public int start, end;
     public int id;
     public HashMap<Integer, Range> routingTable = new HashMap<>();
+    public HashMap<Integer, Integer> ruleMap = new HashMap<>();
     public HashMap<Range, Integer> offsets = new HashMap<>();
 
     public Node(int id, int start, int end) {
@@ -16,7 +17,8 @@ public class Node {
 
     public int addTunnel(int id){
         this.addRange(id, new Range(this.end + 1, this.end + 1));
-        return this.end + 1;
+        this.end++;
+        return this.end;
     }
 
     public void addRange(int key, Range range) {
@@ -24,23 +26,34 @@ public class Node {
         offsets.put(range, 0);
     }
 
-    public void registerTunnel(int id){
+    public int registerTunnel(Node previous, int id){
+        System.out.println("reg for node " + previous + " - " + id);
         if (id > end){
             end = id;
         }
 
+        Range range = routingTable.get(previous.id);
+        if ((id + range.offset) > range.end){
+            range.end = id + range.offset;
+            if(end < range.end)
+                end = range.end;
+        }
+
         for (int key : routingTable.keySet()){
+            if(key == previous.id)
+                continue;
+
             Range r = routingTable.get(key);
-            if (r.start >= id){
+            if (r.start >= range.end){
                 r.start ++;
                 r.end ++;
+                if(r.end > end)
+                    end = r.end;
                 offsets.put(r, offsets.get(r)+1);
                 r.offset++;
             }
-            if(r.start < id && (r.end > id || r.end == id-1)){
-                r.end ++;
-            }
         }
+        return id + range.offset;
 
     }
 

@@ -105,10 +105,9 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
             simulation.setRandomSeedGenerated(true);
             random = simulation.getRandomGenerator();
             radio = (ApplicationRadio) getInterfaces().getRadio();
+            System.out.println(radio.getPosition().getXCoordinate()+","+radio.getPosition().getYCoordinate());
             leds = (ApplicationLED) getInterfaces().getLED();
             btn = (Button) getInterfaces().getButton();
-            System.out.println("btn ==" + btn);
-
             init();
             measureLogger = initLogger(Level.FINEST, core.getMyAddress()
                     + ".log", new MoteFormatter());
@@ -123,10 +122,7 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
             @Override
             public void execute(long t) {
                 if (battery.getByteLevel() > 0) {
-
                     core.timer();
-
-//                    battery.keepAlive(1);
                 }
                 logger();
                 requestImmediateWakeup();
@@ -136,15 +132,9 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
                 + (1000 + delay) * Simulation.MILLISECOND
         );
     }
-    private void showPacketData(NetworkPacket np){
-    	String data;
-        data  = "packet type:" + np.getTyp()+";";
-        data += "packet size:" + np.getLen()+";";
-        data += "packet src:"  + np.getSrc()+";";
-        data += "packet dst:"  + np.getDst()+";";
-        data += "packet nxtH:" + np.getNxh()+";";
-        data += "packet ttl:"  + np.getTtl();
-        log(data);
+
+    public void receivedPacket(NetworkPacket networkPacket){
+        core.rxRadioPacket(networkPacket);
     }
 
     @Override
@@ -167,9 +157,8 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
                     receivedDataBytes += np.getPayloadSize();
                 }
             }
-//            battery.receiveRadio(p.getPacketData().length);
 
-            core.rxRadioPacket(np, (int) (255 + radio.getCurrentSignalStrength()));
+            core.rxRadioPacket(np);
         }
     }
 
@@ -262,7 +251,18 @@ public abstract class AbstractCoojaMote extends AbstractApplicationMote {
                 log("sending: " + np );
                 RadioPacket pk = new COOJARadioPacket(np.toByteArray());
                 //battery.transmitRadio(pk.getPacketData().length);
-                radio.startTransmittingPacket(pk,1/2 * simulation.MILLISECOND);
+
+                simulation.scheduleEvent(
+                        new MoteTimeEvent(this, 0) {
+                            @Override
+                            public void execute(long t) {
+
+                                radio.startTransmittingPacket(pk,1/2 * simulation.MILLISECOND);
+                            }
+                        },
+                        simulation.getSimulationTime() + 1 * Simulation.MILLISECOND
+                );
+
             }
         }
     }

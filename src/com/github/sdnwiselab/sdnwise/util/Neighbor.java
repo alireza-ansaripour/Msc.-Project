@@ -87,4 +87,9 @@ public final class Neighbor {
     public int getBatt() {
         return batt;
     }
+
+    @Override
+    public int hashCode() {
+        return 1;
+    }
 }

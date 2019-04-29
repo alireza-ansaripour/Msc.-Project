@@ -19,6 +19,9 @@ package com.github.sdnwiselab.sdnwise.packet;
 import static com.github.sdnwiselab.sdnwise.packet.NetworkPacket.DATA;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
 
+import java.lang.reflect.Array;
+import java.util.Arrays;
+
 /**
  * This class models a Data packet. The data packet is used for application
  * layer messages.
@@ -55,6 +58,11 @@ public class DataPacket extends NetworkPacket {
         super(data.toByteArray());
     }
 
+    @Override
+    public String toString() {
+        return super.toString() +  Arrays.toString(getPayload());
+    }
+
     /**
      * This constructor initialize a data packet. The type of the packet is set
      * to SDN_WISE_DATA.
@@ -64,6 +72,8 @@ public class DataPacket extends NetworkPacket {
      * @param dst destination address of the packet
      * @param payload the byte[] containing the payload of the packet
      */
+
+
     public DataPacket(final int net, final NodeAddress src,
             final NodeAddress dst,
             final byte[] payload) {
@@ -79,14 +89,5 @@ public class DataPacket extends NetworkPacket {
      */
     public final byte[] getData() {
         return super.getPayload();
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder output = new StringBuilder();
-        for (byte b : getData()){
-            output.append(b);
-        }
-        return super.toString() + output;
     }
 }

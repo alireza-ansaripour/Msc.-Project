@@ -1,4 +1,4 @@
-package com.github.sdnwiselab.sdnwise.Ctrl.services.topo;
+package Ctrl.services.topo;
 
 public class Link {
     private Node src,dst;

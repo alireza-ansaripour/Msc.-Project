@@ -574,6 +574,7 @@ public class NetworkPacket implements Cloneable {
     @Override
     public  String toString() {
         return "packet INFO : src = " + this.getSrc() + " ,dst = " + getDst() + ", TYP= " + getTyp() + ", NXH= " + getNxh() + "CUR = " + getCUR()+ "MSG = " + getMsgIndex()+ " :";
+//        return Arrays.toString(toIntArray());
     }
 
     /**

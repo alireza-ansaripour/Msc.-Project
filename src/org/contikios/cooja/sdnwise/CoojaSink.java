@@ -16,7 +16,7 @@
  */
 package org.contikios.cooja.sdnwise;;
 
-import com.github.sdnwiselab.sdnwise.Ctrl.Controller;
+import Ctrl.Controller;
 import com.github.sdnwiselab.sdnwise.mote.battery.SinkBattery;
 import com.github.sdnwiselab.sdnwise.mote.core.*;
 import com.github.sdnwiselab.sdnwise.packet.NetworkPacket;
@@ -56,18 +56,24 @@ public class CoojaSink extends AbstractCoojaMote {
     public final void init() {
         battery = new SinkBattery();
         Controller.getInstance(this);
-        System.out.println("here");
+
+
         core = new SinkCore((byte) 1,
                 new NodeAddress(this.getID()),
                 battery,
                 "00000001",
                 "00:01:02:03:04:05",
                 1,
-                null);
-
-        System.out.println("not here");
+                null,
+                this);
         core.start();
         startThreads();
+    }
+
+    @Override
+    protected void runCommand(String input) {
+        core.sendReport();
+        logI("report to ctrl");
     }
 
     @Override

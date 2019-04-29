@@ -16,6 +16,7 @@
  */
 package com.github.sdnwiselab.sdnwise.mote.core;
 
+import Ctrl.Controller;
 import com.github.sdnwiselab.sdnwise.packet.RegProxyPacket;
 import com.github.sdnwiselab.sdnwise.mote.battery.Dischargeable;
 import com.github.sdnwiselab.sdnwise.packet.BeaconPacket;
@@ -24,6 +25,9 @@ import com.github.sdnwiselab.sdnwise.packet.DataPacket;
 import com.github.sdnwiselab.sdnwise.packet.NetworkPacket;
 import com.github.sdnwiselab.sdnwise.util.Neighbor;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
+import org.contikios.cooja.sdnwise.AbstractCoojaMote;
+import org.contikios.cooja.sdnwise.CoojaSink;
+
 import java.net.InetSocketAddress;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Level;
@@ -76,19 +80,30 @@ public class SinkCore extends AbstractCore {
             final String dPid,
             final String mac,
             final long port,
-            final InetSocketAddress ctrl) {
+            final InetSocketAddress ctrl,
+            final AbstractCoojaMote mote) {
         super(net, address, battery);
         this.switchDPid = dPid;
         this.switchMac = mac;
         this.switchPort = port;
         this.addrController = ctrl;
+        this.setMote(mote);
+
+    }
+
+    public void start(){
+        super.start();
+//        radioTX(prepareBeacon());
     }
 
     @Override
     public final void controllerTX(final NetworkPacket pck) {
         try {
-            txControllerQueue.put(pck);
-        } catch (InterruptedException ex) {
+            Controller controller  = Controller.getInstance();
+//            controller.handleIncommingPacket(pck);
+            controller.txControllerQueue.put(pck);
+
+        } catch (Exception ex) {
             log(Level.SEVERE, ex.toString());
         }
     }
@@ -146,6 +161,19 @@ public class SinkCore extends AbstractCore {
     @Override
     protected final void rxBeacon(final BeaconPacket bp, final int rssi) {
         Neighbor nb = new Neighbor(bp.getSrc(), rssi, bp.getBattery());
-        getNeighborTable().add(nb);
+
+
+        boolean add = true;
+        for (Neighbor neighbor : getNeighborTable()){
+            if (
+                    neighbor.getAddr().intValue() == nb.getAddr().intValue()
+                    ){
+                add = false;
+            }
+        }
+
+
+        if (add)
+            getNeighborTable().add(nb);
     }
 }

@@ -33,6 +33,8 @@ import static com.github.sdnwiselab.sdnwise.packet.NetworkPacket.DFLT_TTL_MAX;
 import static com.github.sdnwiselab.sdnwise.packet.NetworkPacket.DST_INDEX;
 import com.github.sdnwiselab.sdnwise.util.Neighbor;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
+import org.contikios.cooja.sdnwise.AbstractCoojaMote;
+
 import java.nio.charset.Charset;
 import java.util.logging.*;
 
@@ -52,9 +54,12 @@ public class MoteCore extends AbstractCore {
      * @param battery the battery of the node
      */
     public MoteCore(final byte net, final NodeAddress na,
-            final Dischargeable battery) {
+            final Dischargeable battery,
+            final AbstractCoojaMote mote) {
         super(net, na, battery);
         setActive(true);
+        setMote(mote);
+
     }
 
     @Override
@@ -89,8 +94,7 @@ public class MoteCore extends AbstractCore {
     @Override
     protected final void rxBeacon(final BeaconPacket bp, final int rssi) {
         if (true) {
-            if (bp.getDistance() < getSinkDistance()
-                    && (rssi > getSinkRssi())) {
+            if (bp.getDistance() < getSinkDistance()) {
                 setActive(true);
                 FlowTableEntry toSink = new FlowTableEntry();
                 toSink.addWindow(new Window()
@@ -104,21 +108,31 @@ public class MoteCore extends AbstractCore {
                 toSink.addAction(new ForwardUnicastAction(bp.getSrc()));
                 getFlowTable().set(0, toSink);
 
+                log(Level.INFO, "sink addr updated " + bp.getSrc());
                 setSinkDistance(bp.getDistance() + 1);
                 setSinkRssi(rssi);
-                log(Level.INFO, "sink addr updated" + bp.getSrc());
-                radioTX(prepareBeacon());
-            } else if ((bp.getDistance() + 1) == getSinkDistance()
-                    && getNextHopVsSink().equals(bp.getSrc())) {
-                getFlowTable().get(0).getStats().restoreTtl();
-                getFlowTable().get(0).getWindows().get(0)
-                        .setRhs(bp.getSinkAddress().intValue());
                 radioTX(prepareBeacon());
             }
             Neighbor nb = new Neighbor(bp.getSrc(), rssi, bp.getBattery());
-            getNeighborTable().add(nb);
+            boolean add = true;
+            for (Neighbor neighbor : getNeighborTable()){
+                if (
+                        neighbor.getAddr().intValue() == nb.getAddr().intValue()
+                    ){
+                    add = false;
+                }
+            }
+
+
+            if (add)
+                getNeighborTable().add(nb);
         }
     }
+
+    public void txBeacon(){
+        radioTX(prepareBeacon());
+    }
+
 
     @Override
     protected final void rxConfig(final ConfigPacket cp) {

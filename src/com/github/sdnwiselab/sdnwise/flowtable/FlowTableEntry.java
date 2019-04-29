@@ -31,6 +31,16 @@ import java.util.Objects;
  */
 public final class FlowTableEntry implements FlowTableInterface {
 
+    private int id;
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
     /**
      * Contains the list of windows of the FlowTableEntry. All the windows must
      * be sadisfied in order to execute the actions.

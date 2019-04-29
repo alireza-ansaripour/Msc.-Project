@@ -1,4 +1,4 @@
-package com.github.sdnwiselab.sdnwise.Ctrl.services.logger;
+package Ctrl.services.logger;
 
 
 public class LoggerService {

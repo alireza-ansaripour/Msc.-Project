@@ -16,12 +16,15 @@
  */
 package org.contikios.cooja.sdnwise;;
 
+import com.github.sdnwiselab.sdnwise.flowtable.FlowTableEntry;
 import com.github.sdnwiselab.sdnwise.mote.battery.Battery;
 import com.github.sdnwiselab.sdnwise.mote.core.*;
 import com.github.sdnwiselab.sdnwise.packet.DataPacket;
 import com.github.sdnwiselab.sdnwise.packet.NetworkPacket;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
 import org.contikios.cooja.*;
+
+import java.util.logging.Level;
 
 /**
  * @author Sebastiano Milardo
@@ -39,7 +42,7 @@ public class CoojaMote extends AbstractCoojaMote {
     @Override
     public final void init() {
         battery = new Battery();
-        core = new MoteCore((byte) 1, new NodeAddress(this.getID()), battery);
+        core = new MoteCore((byte) 1, new NodeAddress(this.getID()), battery, this);
         core.start();
         startThreads();
 
@@ -50,15 +53,36 @@ public class CoojaMote extends AbstractCoojaMote {
         super.execute(time);
         CoojaMote mote = this;
         Simulation simulation = getSimulation();
+
+        simulation.scheduleEvent(
+                new MoteTimeEvent(this, 200000 * simulation.MILLISECOND) {
+                    @Override
+                    public void execute(long t) {
+                        NodeAddress addr = new NodeAddress("0.10");
+                        NetworkPacket np = new DataPacket(1, new NodeAddress(mote.getID()), addr,new byte[]{1});
+                        if(mote.getID()==6 ) {
+//                            mote.core.send(np);
+
+                        }
+                    }
+                },
+                simulation.getSimulationTime()
+                        + 44000 * Simulation.MILLISECOND
+        );
     }
 
     @Override
     protected void runCommand(String input) {
-        String[] parts = input.split(" ");
-        byte[] data = parts[1].getBytes();
-        String dst = parts[0];
-        DataPacket dataPacket = new DataPacket(1, new NodeAddress(getID()), new NodeAddress(dst), data);
-        core.send(dataPacket);
+//        String[] parts = input.split(" ");
+//        byte[] data = parts[1].getBytes();
+//        String dst = parts[0];
+//        DataPacket dataPacket = new DataPacket(1, new NodeAddress(getID()), new NodeAddress(2), data);
+//        core.send(dataPacket);
+
+//        for (FlowTableEntry en: core.getFlowTable()) {
+//            log(en.toString());
+//        }
+        core.sendReport();
 
     }
 }

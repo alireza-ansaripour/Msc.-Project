@@ -1,4 +1,4 @@
-package com.github.sdnwiselab.sdnwise.Ctrl.interfaces;
+package Ctrl.interfaces;
 
 import com.github.sdnwiselab.sdnwise.packet.NetworkPacket;
 

@@ -17,7 +17,6 @@
 package com.github.sdnwiselab.sdnwise.mote.core;
 
 import com.github.sdnwiselab.sdnwise.flowtable.AbstractAction;
-import static com.github.sdnwiselab.sdnwise.flowtable.AbstractAction.Action.FORWARD_U;
 import com.github.sdnwiselab.sdnwise.flowtable.AbstractForwardAction;
 import com.github.sdnwiselab.sdnwise.flowtable.FlowTableEntry;
 import static com.github.sdnwiselab.sdnwise.flowtable.FlowTableInterface.CONST;
@@ -25,7 +24,6 @@ import static com.github.sdnwiselab.sdnwise.flowtable.FlowTableInterface.NULL;
 import static com.github.sdnwiselab.sdnwise.flowtable.FlowTableInterface.PACKET;
 import static com.github.sdnwiselab.sdnwise.flowtable.FlowTableInterface.STATUS;
 import com.github.sdnwiselab.sdnwise.flowtable.ForwardUnicastAction;
-import com.github.sdnwiselab.sdnwise.flowtable.FunctionAction;
 import com.github.sdnwiselab.sdnwise.flowtable.SetAction;
 import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.ADD;
 import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.AND;
@@ -35,7 +33,6 @@ import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.MUL;
 import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.OR;
 import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.SUB;
 import static com.github.sdnwiselab.sdnwise.flowtable.SetAction.XOR;
-import com.github.sdnwiselab.sdnwise.flowtable.Stats;
 import static com.github.sdnwiselab.sdnwise.flowtable.Stats.ENTRY_TTL_PERMANENT;
 import com.github.sdnwiselab.sdnwise.flowtable.Window;
 import static com.github.sdnwiselab.sdnwise.flowtable.Window.EQUAL;
@@ -47,7 +44,6 @@ import static com.github.sdnwiselab.sdnwise.flowtable.Window.LESS_OR_EQUAL;
 import static com.github.sdnwiselab.sdnwise.flowtable.Window.W_SIZE_1;
 import static com.github.sdnwiselab.sdnwise.flowtable.Window.W_SIZE_2;
 import static com.github.sdnwiselab.sdnwise.flowtable.Window.fromString;
-import com.github.sdnwiselab.sdnwise.function.FunctionInterface;
 import com.github.sdnwiselab.sdnwise.mote.battery.Dischargeable;
 import static com.github.sdnwiselab.sdnwise.mote.core.Constants.ENTRY_TTL_DECR;
 import static com.github.sdnwiselab.sdnwise.mote.core.Constants.SDN_WISE_DFLT_CNT_BEACON_MAX;
@@ -60,6 +56,7 @@ import com.github.sdnwiselab.sdnwise.packet.*;
 import com.github.sdnwiselab.sdnwise.packet.ConfigPacket.ConfigProperty;
 import com.github.sdnwiselab.sdnwise.util.Neighbor;
 import com.github.sdnwiselab.sdnwise.util.NodeAddress;
+import org.contikios.cooja.sdnwise.AbstractCoojaMote;
 
 import static com.github.sdnwiselab.sdnwise.packet.NetworkPacket.*;
 import static com.github.sdnwiselab.sdnwise.util.Utils.mergeBytes;
@@ -76,10 +73,14 @@ import java.util.logging.Logger;
  * @author Sebastiano Milardo
  */
 public abstract class AbstractCore {
-    /**
-     * Lenght of the function subheader.
-     */
-    private static final int FUNCTION_HEADER = 3;
+
+
+    protected AbstractCoojaMote mote;
+
+    public void setMote(AbstractCoojaMote mote){
+        this.mote = mote;
+    }
+
     /**
      * Max RSSI value.
      */
@@ -87,7 +88,7 @@ public abstract class AbstractCore {
     /**
      * Queue size.
      */
-    protected static final int QUEUE_SIZE = 100;
+    protected static final int QUEUE_SIZE = 10000;
     /**
      * Battery.
      */
@@ -123,11 +124,7 @@ public abstract class AbstractCore {
      */
     private final HashMap<Integer, LinkedList<byte[]>> functionBuffer
             = new HashMap<>();
-    /**
-     * Function Array.
-     */
-    private final HashMap<Integer, FunctionInterface> functions
-            = new HashMap<>();
+
     /**
      * A Mote becomes active after it receives a beacon. A Sink is always
      * active.
@@ -149,8 +146,7 @@ public abstract class AbstractCore {
     /**
      * Contains the NodeAddress, RSSI, and battery of the Neigbors of the node.
      */
-    private final Set<Neighbor> neighborTable =
-            Collections.synchronizedSet(new HashSet<>());;
+    private final Set<Neighbor> neighborTable = new HashSet<>();
     /**
      * A packet having an RSSI less than this value is dropped.
      */
@@ -163,7 +159,7 @@ public abstract class AbstractCore {
     public void addSendPackets(NetworkPacket packet){
         try {
             se.acquire();
-            sendPackets.put((int)packet.getMsgIndex(), packet);
+//            sendPackets.put((int)packet.getMsgIndex(), packet);
             se.release();
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -274,16 +270,15 @@ public abstract class AbstractCore {
      * the incoming rxQueue.
      *
      * @param np a NetworkPacket
-     * @param rssi the RSSI of the NetworkPacket
      */
-    public final void rxRadioPacket(final NetworkPacket np, final int rssi) {
+    public final void rxRadioPacket(final NetworkPacket np) {
         if (np.getDst().isBroadcast()
+                || np.getNxh().isBroadcast()
+                || np.getDst().equals(myAddress)
                 || np.getNxh().equals(myAddress)
                 || acceptedId.contains(np.getNxh())
                 || !np.isSdnWise()) {
-            if(np.getTyp() != ACK)
-                radioTX(prepareAck(np));
-            rxHandler(np, rssi);
+            rxHandler(np, 100);
         }
     }
 
@@ -299,52 +294,16 @@ public abstract class AbstractCore {
      * Starts the Core of the node. To be called before doing anything with the
      * node itself.
      */
-    public final void start() {
+    public void start() {
         initFlowTable();
         initStatusRegister();
         initSdnWise();
         new Thread(new IncomingQueuePacketManager()).start();
         new Thread(new FlowTableQueuePacketManager()).start();
+
     }
 
-    Random random = new Random();
-    int startDelay = random.nextInt(10);
-    /**
-     * This method is called every second, and it is used to decide when to send
-     * a Beacon, a Report, and to age the entries of the FlowTable.
-     */
-    public final void timer() {
-        if (myAddress.intValue() != 1) {
-            if (startDelay >= 0) {
-                startDelay--;
-                return;
-            }
-        }
-        if (true) {
-            cntBeacon++;
-            cntReport++;
-            cntUpdTable++;
-            if ((cntReport) >= cntReportMax) {
-                cntReport = 0;
-                cntBeacon = 0;
-                log(Level.INFO,"report");
-                controllerTX(prepareReport());
-            }
 
-            if ((cntBeacon) >= cntBeaconMax) {
-                cntBeacon = 0;
-                log(Level.INFO, "beacon");
-                radioTX(prepareBeacon());
-            }
-
-
-
-            if ((cntUpdTable) >= cntUpdtableMax) {
-                cntUpdTable = 0;
-                updateTable();
-            }
-        }
-    }
 
     /**
      * Compares two integers.
@@ -374,25 +333,6 @@ public abstract class AbstractCore {
             default:
                 return false;
         }
-    }
-
-    /**
-     * Creates a function starting from a byte array.
-     *
-     * @param classFile a byte array containing a class that implemements
-     * FunctionInterface
-     * @return an instance of the function
-     */
-    private FunctionInterface createServiceInterface(final byte[] classFile) {
-        CustomClassLoader cl = new CustomClassLoader();
-        FunctionInterface srvI = null;
-        Class service = cl.defClass(classFile);
-        try {
-            srvI = (FunctionInterface) service.newInstance();
-        } catch (InstantiationException | IllegalAccessException ex) {
-            log(Level.SEVERE, ex.toString());
-        }
-        return srvI;
     }
 
     /**
@@ -503,6 +443,42 @@ public abstract class AbstractCore {
         }
     }
 
+    Random rand = new Random();
+    int delay = rand.nextInt(5)+2;
+
+    public final void timer() {
+        if (myAddress.intValue() != 1) {
+            if (delay > 0) {
+                delay--;
+                return;
+            }
+        }
+        if (true) {
+            cntBeacon++;
+            cntReport++;
+            cntUpdTable++;
+            if ((cntReport) >= cntReportMax) {
+                cntReport = 0;
+                cntBeacon = 0;
+//                controllerTX(prepareReport());
+            }
+
+            if ((cntBeacon) >= cntBeaconMax) {
+                cntBeacon = 0;
+
+                radioTX(prepareBeacon());
+
+            }
+
+
+
+            if ((cntUpdTable) >= cntUpdtableMax) {
+                cntUpdTable = 0;
+                updateTable();
+            }
+        }
+    }
+
     /**
      * Checks if there is a match for a packet.
      *
@@ -543,7 +519,7 @@ public abstract class AbstractCore {
      */
     protected BeaconPacket prepareBeacon() {
         return new BeaconPacket(myNet, myAddress,
-                getActualSinkAddress(), sinkDistance, battery.getByteLevel());
+                getActualSinkAddress(), sinkDistance, 100);
     }
 
     /**
@@ -551,13 +527,10 @@ public abstract class AbstractCore {
      *
      * @return a Report packet
      */
-    private ReportPacket prepareReport() {
-
-        ReportPacket rp = new ReportPacket(myNet, myAddress,
-                getActualSinkAddress(), sinkDistance, battery.getByteLevel());
-
+    protected ReportPacket prepareReport() {
+        log(Level.INFO, "sending report");
+        ReportPacket rp = new ReportPacket(myNet, myAddress, getActualSinkAddress(), sinkDistance, 100);
         rp.setNeighbors(this.neighborTable.size()).setNxh(getNextHopVsSink());
-
         int j = 0;
         synchronized (neighborTable) {
             for (Neighbor n : neighborTable) {
@@ -611,16 +584,6 @@ public abstract class AbstractCore {
                                 + res + ". Done.");
                     }
                     break;
-                case FUNCTION:
-                    FunctionAction ftac = (FunctionAction) act;
-                    FunctionInterface srvI = functions.get(ftac.getId());
-                    if (srvI != null) {
-                        log(Level.INFO, "Function called: " + myAddress);
-                        srvI.function(sensors, flowTable, neighborTable,
-                                statusRegister, acceptedId, ftQueue, txQueue,
-                                ftac.getArgs(), np);
-                    }
-                    break;
                 case ASK:
                     RequestPacket[] rps = RequestPacket.createPackets(
                             (byte) myNet, myAddress, getActualSinkAddress(),
@@ -633,6 +596,8 @@ public abstract class AbstractCore {
                 case MATCH:
                     ftQueue.put(np);
                     break;
+                case REPORT:
+                    controllerTX(prepareReport());
                 default:
                     break;
             } //switch
@@ -789,15 +754,15 @@ public abstract class AbstractCore {
 
 
         int i = searchRule(rule);
-        if (i != -1) {
-            flowTable.set(i, rule);
-            log(Level.INFO, "Replacing rule " + rule
-                    + " at position " + i);
+        if ( rule.getActions().size() == 0) {
+            if (i != -1) {
+                System.out.println("Removing rule " + flowTable.get(i)
+                        + " at position " + i);
+                flowTable.remove(i);
+            }
         } else {
             rule.getStats().setPermanent();
             flowTable.add(rule);
-            log(Level.INFO, "Inserting rule " + rule
-                    + " at position " + (flowTable.size() - 1));
             System.out.println("Inserting rule " + rule
                     + " at position " + (flowTable.size() - 1));
         }
@@ -893,32 +858,7 @@ public abstract class AbstractCore {
             case RESET:
                 reset();
                 break;
-            case ADD_FUNCTION:
-                if (functionBuffer.get(idValue) == null) {
-                    functionBuffer.put(idValue, new LinkedList<>());
-                }
-                byte[] function = Arrays.copyOfRange(value, FUNCTION_HEADER,
-                        value.length);
-                int totalParts = Byte.toUnsignedInt(value[2]);
-                functionBuffer.get(idValue).add(function);
-                if (functionBuffer.get(idValue).size() == totalParts) {
-                    int total = 0;
-                    total = functionBuffer.get(idValue).stream().map((n)
-                            -> (n.length)).reduce(total, Integer::sum);
-                    int pointer = 0;
-                    byte[] func = new byte[total];
-                    for (byte[] n : functionBuffer.get(idValue)) {
-                        System.arraycopy(n, 0, func, pointer, n.length);
-                        pointer += n.length;
-                    }
-                    functions.put(idValue, createServiceInterface(func));
-                    log(Level.INFO, "New Function Added at pos.: " + idValue);
-                    functionBuffer.remove(idValue);
-                }
-                break;
-            case REM_FUNCTION:
-                functions.remove(idValue);
-                break;
+
             default:
                 break;
         }
@@ -1014,9 +954,11 @@ public abstract class AbstractCore {
      */
     protected final void radioTX(final NetworkPacket np) {
         np.decrementTtl();
-
-        txQueue.add(np);
+//        txQueue.add(np);
+        mote.radioTX(np);
     }
+
+
 
     /**
      * Resets a node to its initial condition.
@@ -1033,12 +975,11 @@ public abstract class AbstractCore {
     protected final void runFlowMatch(final NetworkPacket packet) {
         int i = 0;
         boolean matched = false;
-        log(Level.INFO, "The packet: " + packet);
+        System.out.println(getMyAddress() + " The packet: " + packet);
         for (FlowTableEntry fte : flowTable) {
-            System.out.println("entry " + fte);
             i++;
             if (matchRule(fte, packet)) {
-                log(Level.FINE, "Matched Rule #" + i + " " + fte.toString());
+                System.out.println( "Matched Rule #" + i + " " + fte.toString());
                 matched = true;
                 fte.getActions().stream().forEach((a) -> {
                     runAction(a, packet);
@@ -1049,17 +990,25 @@ public abstract class AbstractCore {
         }
 
         if (!matched) {
+
             // send a rule request
             RequestPacket[] rps = RequestPacket.createPackets((byte) myNet,
                     myAddress, getActualSinkAddress(), requestId++,
                     packet.toByteArray());
 
+            Semaphore s = new Semaphore(1);
 
             for (RequestPacket rp : rps) {
                 log(Level.INFO, "send request to ctrl " + packet);
+                try {
+                    s.acquire();
+                    buffer.add(packet);
+                    s.release();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 controllerTX(rp);
             }
-            buffer.add(packet);
         }
     }
 
@@ -1083,11 +1032,20 @@ public abstract class AbstractCore {
     protected final void rxData(final DataPacket packet) {
         if (isAcceptedIdPacket(packet)) {
             log(Level.INFO, "CALLBACK");
+//            controllerTX(prepareReport());
             dataCallback(packet);
         } else if (isAcceptedIdAddress(packet.getNxh())) {
             log(Level.INFO, "FLOW MACH");
             runFlowMatch(packet);
         }
+    }
+
+    public void sendReport(){
+        controllerTX(prepareReport());
+    }
+
+    public void txBeaoon(){
+        radioTX(prepareBeacon());
     }
 
     /**
@@ -1101,7 +1059,6 @@ public abstract class AbstractCore {
             case DATA:
                 rxData(new DataPacket(packet));
                 break;
-
             case BEACON:
                 rxBeacon(new BeaconPacket(packet), rssi);
                 break;
@@ -1214,19 +1171,17 @@ public abstract class AbstractCore {
      * @param packet the incoming request packet
      */
     protected final void rxResponse(final ResponsePacket packet) {
-        if (isAcceptedIdPacket(packet)) {
+        if (isAcceptedIdPacket(packet) && packet.getDst().equals(myAddress)) {
             packet.getRule().getStats().setPermanent();
 
             insertRule(packet.getRule());
             // run flow matching for every packet in bufer
             for(NetworkPacket np : buffer) {
-                log(Level.INFO, "packet: " + np.getTyp() + ", " + np.getSrc()+ " res: " + matchRule(packet.getRule(), np));
                 if (matchRule(packet.getRule(), np)) {
                     log(Level.INFO, "Matched Rule new incoming packet" + buffer.size());
                     packet.getRule().getActions().forEach((a) -> {
                         runAction(a, np);
                     });
-                    log(Level.INFO, "action done");
                     packet.getRule().getStats().increaseCounter();
                 }
             }
@@ -1333,14 +1288,6 @@ public abstract class AbstractCore {
      */
     public final ArrayBlockingQueue<NetworkPacket> getFtQueue() {
         return ftQueue;
-    }
-
-    /**
-     * Gets an HashMap containing the installed Functions.
-     * @return an HashMap containing the installed Functions
-     */
-    public final HashMap<Integer, FunctionInterface> getFunctions() {
-        return functions;
     }
 
     /**
